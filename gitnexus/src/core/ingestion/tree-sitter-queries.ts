@@ -688,6 +688,62 @@ export const GO_QUERIES = `
     field: (field_identifier) @assignment.property)) @assignment
 `;
 
+export const GDSCRIPT_QUERIES = `
+// GDScript queries - works with tree-sitter-gdscript
+(class_definition
+ name: (identifier) @name) @definition.class
+
+(function_definition
+ name: (identifier) @name) @definition.function
+
+(import_statement
+ name: (dotted_name) @import.source) @import
+
+(import_from_statement
+ module_name: (dotted_name) @import.source) @import
+
+(call
+ function: (identifier) @call.name) @call
+
+(call
+ function: (attribute
+ attribute: (identifier) @call.name)) @call
+
+(expression_statement
+ (assignment
+ left: (identifier) @name
+ type: (type)) @definition.property)
+
+(expression_statement
+ (assignment
+ left: (identifier) @name)) @definition.variable
+
+(class_definition
+ name: (identifier) @heritage.class
+ superclasses: (argument_list
+ (identifier) @heritage.extends)) @heritage
+
+(assignment
+ left: (attribute
+ object: (_) @assignment.receiver
+ attribute: (identifier) @assignment.property)
+ right: (_)) @assignment
+
+(augmented_assignment
+ left: (attribute
+ object: (_) @assignment.receiver
+ attribute: (identifier) @assignment.property)
+ right: (_)) @assignment
+
+(decorator
+ (call
+ function: (attribute
+ object: (identifier) @decorator.receiver
+ attribute: (identifier) @decorator.name)
+ arguments: (argument_list
+ (string (string_content) @decorator.arg)?))) @decorator
+`;
+
 // C++ queries - works with tree-sitter-cpp
 export const CPP_QUERIES = `
 ; Classes, Structs, Namespaces
@@ -1532,6 +1588,7 @@ export const LANGUAGE_QUERIES: Record<SupportedLanguages, string> = {
   [SupportedLanguages.Python]: PYTHON_QUERIES,
   [SupportedLanguages.Java]: JAVA_QUERIES,
   [SupportedLanguages.C]: C_QUERIES,
+  [SupportedLanguages.GDScript]: GDSCRIPT_QUERIES,
   [SupportedLanguages.Go]: GO_QUERIES,
   [SupportedLanguages.CPlusPlus]: CPP_QUERIES,
   [SupportedLanguages.CSharp]: CSHARP_QUERIES,
