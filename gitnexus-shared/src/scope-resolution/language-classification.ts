@@ -32,6 +32,7 @@ export const LanguageClassifications: Readonly<Record<SupportedLanguages, Langua
     [SupportedLanguages.C]: 'production',
     [SupportedLanguages.CPlusPlus]: 'production',
     [SupportedLanguages.CSharp]: 'production',
+    [SupportedLanguages.GDScript]: 'experimental',
     [SupportedLanguages.Go]: 'production',
     [SupportedLanguages.Ruby]: 'production',
     [SupportedLanguages.Rust]: 'production',
