@@ -10,7 +10,7 @@ export const gdscriptProvider = {
   queries: GDScriptQueries,
   
   // Properties from my previous attempt
-  importSemantics: 'standard', 
+  importSemantics: 'namespace', 
   heritageDefaultEdge: 'inheritance',
   mroStrategy: 'first-wins',
   isBuiltInName: (name: string) => ['print', 'range', 'len'].includes(name),
@@ -24,6 +24,9 @@ export const gdscriptProvider = {
   typeConfig: {},
   exportChecker: (node: any) => false,
   importResolver: (path: string) => path,
+  callExtractor: undefined,
+  fieldExtractor: undefined,
+  methodExtractor: undefined,
 
   /**
    * The parsing phase implementation.
