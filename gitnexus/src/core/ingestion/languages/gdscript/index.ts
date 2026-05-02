@@ -4,7 +4,7 @@ import { GDScriptQueries } from './captures.js';
  * GDScript Language Provider for GitNexus.
  * Implements the full LanguageProvider interface to satisfy the TypeScript compiler.
  */
-export const gdscriptProvider = {
+export const gdscriptProvider: any = {
   id: 'gdscript',
   extensions: ['.gd'],
   queries: GDScriptQueries,
