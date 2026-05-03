@@ -13,7 +13,14 @@ export const GDScriptQueries = {
     (class_definition
       name: (name) @definition.class)
   `,
-
+   declarations: `
+    (signal_definition
+      name: (name) @definition.signal)
+    (enum_definition
+      name: (name) @definition.enum)
+    (const_definition
+      name: (name) @definition.const)
+  `,
   // Captures variable/property declarations at the top level or within functions
   properties: `
     (variable_statement

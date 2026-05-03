@@ -67,7 +67,7 @@ export const gdscriptProvider: LanguageProvider = defineLanguage({
       ? (cachedTree as Parser.SyntaxNode) 
       : parser.parse(sourceText).rootNode;
 
-    const query = new Parser.Query(gdscript, GDScriptQueries.definitions);
+    const query = new Parser.Query(gdscript, GDScriptTreeSitterQueries);
     const matches = query.matches(rootNode);
 
     return matches.map((match): CaptureMatch => {
@@ -94,13 +94,28 @@ export const gdscriptProvider: LanguageProvider = defineLanguage({
    * The "Semanticist": Interprets imports (preload/extends).
    */
   interpretImport: (capture) => {
+    // 1. Handle existing preload/extends logic
     if (capture.name.text === 'preload' || capture.name.text === 'extends') {
       return {
         kind: 'import',
         targetRaw: capture.node.text,
-        // ... other metadata
       } as any;
     }
+  
+    // 2. NEW: Handle class_definition as a "Symbol Export"
+    // If the node being processed is a class_definition, we treat it as a
+    // declaration that populates the global scope.
+    if (capture.node.type === 'class_definition') {
+      const classNameNode = capture.node.children.find(c => c.type === 'identifier' || c.type === 'name');
+      if (classNameNode) {
+        return {
+          kind: 'symbol_export',
+          symbolName: classNameNode.text,
+          targetRaw: classNameNode.text
+        } as any;
+      }
+    }
+  
     return null;
   },
 
@@ -109,10 +124,33 @@ export const gdscriptProvider: LanguageProvider = defineLanguage({
    */
   typeConfig: {
     declarationNodeTypes: new Set(['variable_statement', 'function_definition']),
+    declarationNodeTypes: new Set([
+      'variable_statement',
+      'function_definition',
+      'signal_definition',
+      'enum_definition',
+      'const_definition',
+      'class_definition'
+    ]),
     extractDeclaration: (node, env) => {
-      const idNode = node.children.find(c => c.type === 'identifier');
-      const typeNode = node.children.find(c => c.type === 'type');
-      if (idNode) env.set(idNode.text, typeNode?.text || 'unknown');
+      const idNode = node.children.find(c => c.type === 'identifier' || c.type === 'name');
+      const typeNode = node.children.find(c => c.type === 'type' || c.type === 'type_identifier');
+    
+      if (idNode) {
+        // For signals/enums/consts, we often just want the name
+        // For variables, we want name + type
+        const name = idNode.text;
+        const type = typeNode?.text || 'unknown';
+    
+        env.set(name, type);
+    
+        // NEW: If this is a class definition, we explicitly map the class name
+        // to the current file in the environment.
+        if (node.type === 'class_definition') {
+          // This allows the engine to resolve 'MyClass' -> 'path/to/file.gd'
+          env.setSymbolToPath(name, 'current_file_context');
+        }
+      }
     },
     extractParameter: (node, env) => {
       const idNode = node.children.find(c => c.type === 'identifier');
