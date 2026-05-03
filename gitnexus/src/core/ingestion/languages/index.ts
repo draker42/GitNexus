@@ -44,7 +44,7 @@ export const providers = {
   [SupportedLanguages.Dart]: dartProvider,
   [SupportedLanguages.Vue]: vueProvider,
   [SupportedLanguages.Cobol]: cobolProvider,
-  [SupportedLanguages.GDScript]: gdscriptProvider,
+  [SupportedLanguages.GDScript]: gdscriptProvider as unknown as LanguageProvider,
 } satisfies Record<SupportedLanguages, LanguageProvider>;
 
 /** Get provider by language enum (always succeeds for SupportedLanguages). */

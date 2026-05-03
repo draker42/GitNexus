@@ -50,6 +50,10 @@ describe('parser-loader', () => {
       await expect(loadLanguage(SupportedLanguages.Go)).resolves.not.toThrow();
     });
 
+    it('loads GDScript language', async () => {
+      await expect(loadLanguage(SupportedLanguages.GDScript)).resolves.not.toThrow();
+    });
+
     it('loads Rust language', async () => {
       await expect(loadLanguage(SupportedLanguages.Rust)).resolves.not.toThrow();
     });
