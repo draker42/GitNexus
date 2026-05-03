@@ -52,7 +52,8 @@
     "test:cross-platform": "tsx scripts/run-cross-platform.ts",
     "postinstall": "node scripts/materialize-vendor-grammars.cjs && node scripts/build-tree-sitter-dart.cjs && node scripts/build-tree-sitter-proto.cjs && node scripts/build-tree-sitter-swift.cjs",
     "prepare": "node scripts/build.js",
-    "prepack": "node scripts/build.js"
+    "prepack": "node scripts/build.js",
+    "test:gdscript": "npm run build && npm rebuild tree-sitter-gdscript && node tests/verify_gdscript_runtime.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.1.0",
@@ -107,7 +108,7 @@
     "@vitest/coverage-v8": "^4.0.18",
     "gitnexus-shared": "file:../gitnexus-shared",
     "tsx": "^4.0.0",
-    "typescript": "^5.4.5",
+    "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   },
   "overrides": {

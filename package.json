@@ -28,5 +28,8 @@
       "prettier --write"
     ],
     "*.{js,jsx,mjs,json,css,yml,yaml}": "prettier --write"
+  },
+  "dependencies": {
+    "typescript": "^5.9.3"
   }
 }

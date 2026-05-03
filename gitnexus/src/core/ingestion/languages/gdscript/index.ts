@@ -1,4 +1,6 @@
+import Parser from 'tree-sitter';
 import { GDScriptQueries } from './captures.js';
+import 'tree-sitter-gdscript';
 
 /**
  * GDScript Language Provider for GitNexus.
