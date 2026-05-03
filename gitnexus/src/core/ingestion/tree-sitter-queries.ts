@@ -688,20 +688,24 @@ export const GO_QUERIES = `
     field: (field_identifier) @assignment.property)) @assignment
 `;
 
-export const GDSCRIPT_QUERIES = `
 // GDScript queries - works with tree-sitter-gdscript
+export const GDSCRIPT_QUERIES = `
+; ── Classes ───────────────────────────────────────────────────────────
 (class_definition
  name: (identifier) @name) @definition.class
 
+; ── Functions ─────────────────────────────────────────────────────────
 (function_definition
  name: (identifier) @name) @definition.function
 
+; ── Imports ──────────────────────────────────────────────────────────
 (import_statement
  name: (dotted_name) @import.source) @import
 
 (import_from_statement
  module_name: (dotted_name) @import.source) @import
 
+; ── Calls ────────────────────────────────────────────────────────────
 (call
  function: (identifier) @call.name) @call
 
@@ -709,6 +713,7 @@ export const GDSCRIPT_QUERIES = `
  function: (attribute
  attribute: (identifier) @call.name)) @call
 
+; ── Properties & Variables ───────────────────────────────────────────
 (expression_statement
  (assignment
  left: (identifier) @name
@@ -718,6 +723,7 @@ export const GDSCRIPT_QUERIES = `
  (assignment
  left: (identifier) @name)) @definition.variable
 
+; ── Heritage ─────────────────────────────────────────────────────────
 (class_definition
  name: (identifier) @heritage.class
  superclasses: (argument_list
@@ -735,13 +741,21 @@ export const GDSCRIPT_QUERIES = `
  attribute: (identifier) @assignment.property)
  right: (_)) @assignment
 
-(decorator
- (call
- function: (attribute
- object: (identifier) @decorator.receiver
- attribute: (identifier) @decorator.name)
- arguments: (argument_list
- (string (string_content) @decorator.arg)?))) @decorator
+; ── GDScript Specifics ───────────────────────────────────────────────
+(signal_definition
+ name: (name) @definition.signal)
+
+(enum_definition
+ name: (name) @definition.enum)
+
+(const_definition
+ name: (name) @definition.const)
+
+(extends_statement
+ base_type: (type) @dependency.extends)
+
+(preload_statement
+ path: (string) @dependency.preload)
 `;
 
 // C++ queries - works with tree-sitter-cpp

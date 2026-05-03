@@ -1,6 +1,6 @@
 import Parser from 'tree-sitter';
 import gdscript from 'tree-sitter-gdscript';
-import { GDScriptQueries } from './captures.js';
+import { GDSCRIPT_QUERIES } from '../../tree-sitter-queries.js';
 import { loadParser, loadLanguage } from '../../../tree-sitter/parser-loader.js';
 import { defineLanguage,
         type LanguageProvider,
@@ -37,7 +37,7 @@ const nodeCache = new Map<string, Parser.SyntaxNode>();
 const getCacheKey = (filePath: string, startLine: number, startCol: number) =>
   `${filePath}:${startLine}:${startCol}`;
 
-const GDScriptTreeSitterQueries = Object.values(GDScriptQueries).join('\n');
+const GDScriptTreeSitterQueries = GDSCRIPT_QUERIES;
 
 // 2. Helper Functions (Internal to the module)
 const getClassName = (node: Parser.SyntaxNode): string | undefined => {
