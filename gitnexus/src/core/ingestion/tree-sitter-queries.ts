@@ -713,7 +713,7 @@ export const GDSCRIPT_QUERIES = `
  function: (attribute
  attribute: (identifier) @call.name)) @call
 
-; ── Properties & Variables ───────────────────────────────────────────
+; ── Properties & Variables ───────────────────────────────────────
 (expression_statement
  (assignment
  left: (identifier) @name
@@ -723,23 +723,37 @@ export const GDSCRIPT_QUERIES = `
  (assignment
  left: (identifier) @name)) @definition.variable
 
-; ── Heritage ─────────────────────────────────────────────────────────
+; ── Heritage ───────────────────────────────────────────────────────
 (class_definition
  name: (identifier) @heritage.class
  superclasses: (argument_list
  (identifier) @heritage.extends)) @heritage
 
+// ── Assignments ──────────────────────────────────────────
+// Matches: x = 10
+(assignment
+ left: (identifier) @assignment.variable
+ right: (_) @assignment.value) @assignment
+
+// Matches: obj.property = 10
+// We use the child pattern to avoid relying on 'object:' or 'attribute:' field names
 (assignment
  left: (attribute
- object: (_) @assignment.receiver
- attribute: (identifier) @assignment.property)
- right: (_)) @assignment
+  (_) @assignment.receiver
+  (_) @assignment.property)
+ right: (_) @assignment.value) @assignment
 
+// Matches: x += 10
+(augmented_assignment
+ left: (identifier) @assignment.variable
+ right: (_) @assignment.value) @augmented_assignment
+
+// Matches: obj.property += 10
 (augmented_assignment
  left: (attribute
- object: (_) @assignment.receiver
- attribute: (identifier) @assignment.property)
- right: (_)) @assignment
+  (_) @assignment.receiver
+  (_) @assignment.property)
+ right: (_) @assignment.value) @augmented_assignment
 
 ; ── GDScript Specifics ───────────────────────────────────────────────
 (signal_definition
