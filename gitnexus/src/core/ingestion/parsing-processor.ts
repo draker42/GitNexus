@@ -478,7 +478,7 @@ const processParsingSequential = async (
       query = new Parser.Query(language, queryString);
       matches = query.matches(tree.rootNode);
     } catch (queryError) {
-      logger.warn({ queryError }, `Query error for ${file.path}:`);
+      console.warn(`Query error parse, for ${file.path}:`, queryError);
       continue;
     }
 

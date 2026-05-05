@@ -689,87 +689,176 @@ export const GO_QUERIES = `
 `;
 
 // GDScript queries - works with tree-sitter-gdscript
+//export const GDSCRIPT_QUERIES = `
+//; ── Classes ───────────────────────────────────────────────────────
+//(class_definition
+//  name: (name) @gdscript.class_name
+//  extends_statement: (extends_statement
+//;    type: (type) @gdscript.extends)) @gdscript.class_definition
+//
+//; ── Functions ─────────────────────────────────────────────────────
+//(function_definition
+//  name: (name) @gdscript.function_name) @gdscript.function_definition
+//
+//; ── Signals ───────────────────────────────────────────────────────
+//;(signal_definition
+//;  name: (name) @gdscript.signal_name) @gdscript.signal_definition
+//
+//; ── Enums ─────────────────────────────────────────────────────────
+//(enum_definition
+//  name: (name) @gdscript.enum_name) @gdscript.enum_definition
+//
+//; ── Constants ─────────────────────────────────────────────────────
+//(const_definition
+//  name: (name) @gdscript.const_name) @gdscript.const_definition
+//
+//; ── Variables ─────────────────────────────────────────────────────
+//;(variable_statement
+//;  name: (name) @gdscript.variable_name) @gdscript.variable_statement
+//
+//; ── Assignments ───────────────────────────────────────────────────
+//(assignment
+//  left: (_) @gdscript.assignment_left
+//  right: (_) @gdscript.assignment_right) @gdscript.assignment
+//
+//(augmented_assignment
+//  left: (_) @gdscript.augmented_assignment_left
+//  op: (_) @gdscript.augmented_assignment_op
+//  right: (_) @grand_gdscript_augmented_assignment_right) @gdscript.augmented_assignment
+//`;
+
 export const GDSCRIPT_QUERIES = `
-; ── Classes ───────────────────────────────────────────────────────────
 (class_definition
- name: (identifier) @name) @definition.class
+  name: (name) @class_name)
 
-; ── Functions ─────────────────────────────────────────────────────────
 (function_definition
- name: (identifier) @name) @definition.function
+  name: (name) @function_name
+  parameters: (parameters) @parameters)
 
-; ── Imports ──────────────────────────────────────────────────────────
-(import_statement
- name: (dotted_name) @import.source) @import
+(variable_statement
+  name: (name) @variable_name
+  value: (_) @variable_value)
 
-(import_from_statement
- module_name: (dotted_name) @import.source) @import
+(const_statement
+  name: (name) @const_name
+  value: (_) @const_value)
 
-; ── Calls ────────────────────────────────────────────────────────────
-(call
- function: (identifier) @call.name) @call
+; (enum_definition
+;   name: (name) @enum_name
+;   body: (enumerator_list @enum_body))
 
-(call
- function: (attribute
- attribute: (identifier) @call.name)) @call
+(signal_statement
+  name: (name) @signal_name
+  parameters: (parameters) @signal_parameters)
 
-; ── Properties & Variables ───────────────────────────────────────
-(expression_statement
- (assignment
- left: (identifier) @name
- type: (type)) @definition.property)
+;(class_definition
+;  name: (_) @heritage.class
+;  body: (class_body
+;    (extends_statement
+;      type: (_) @heritage.extends))) @heritage
 
-(expression_statement
- (assignment
- left: (identifier) @name)) @definition.variable
+;(class_specifier name: (type_identifier) @heritage.class
+;  (base_class_clause (type_identifier) @heritage.extends)) @heritage
+;(class_specifier name: (type_identifier) @heritage.class
+;  (base_class_clause (access_specifier) (type_identifier) @heritage.extends)) @heritage
 
-; ── Heritage ───────────────────────────────────────────────────────
-(class_definition
- name: (identifier) @heritage.class
- superclasses: (argument_list
- (identifier) @heritage.extends)) @heritage
+(class_name_statement
+  name: (name) @class_name)
 
-// ── Assignments ──────────────────────────────────────────
-// Matches: x = 10
+(for_statement
+  left: (identifier) @for_iterator
+  right: (_) @for_iterable)
+
+(while_statement
+  condition: (_) @while_condition)
+
+(if_statement
+  condition: (_) @if_condition
+  body: (body) @if_body)
+
+(match_statement
+  value: (_) @match_value
+  body: (match_body) @match_body)
+
+;(return_statement
+;  value: (_) @return_value)
+
+(break_statement)
+(continue_statement)
+(pass_statement)
+
 (assignment
- left: (identifier) @assignment.variable
- right: (_) @assignment.value) @assignment
+  left: (_) @assignment_left
+  right: (_) @assignment_right)
 
-// Matches: obj.property = 10
-// We use the child pattern to avoid relying on 'object:' or 'attribute:' field names
-(assignment
- left: (attribute
-  (_) @assignment.receiver
-  (_) @assignment.property)
- right: (_) @assignment.value) @assignment
-
-// Matches: x += 10
 (augmented_assignment
- left: (identifier) @assignment.variable
- right: (_) @assignment.value) @augmented_assignment
+  left: (_) @augmented_assignment_left
+  op: (_) @augmented_assignment_op
+  right: (_) @augmented_assignment_right)
 
-// Matches: obj.property += 10
-(augmented_assignment
- left: (attribute
-  (_) @assignment.receiver
-  (_) @assignment.property)
- right: (_) @assignment.value) @augmented_assignment
+(array [
+  (_) @array_element
+])
 
-; ── GDScript Specifics ───────────────────────────────────────────────
-(signal_definition
- name: (name) @definition.signal)
+; (dictionary [
+;   (pair @dictionary_pair)
+; ])
 
-(enum_definition
- name: (name) @definition.enum)
+(annotation
+  arguments: (arguments) @annotation_arguments)
 
-(const_definition
- name: (name) @definition.const)
+; (attribute
+;   attribute: (_) @attribute_name
+;   children: (_) @attribute_value)
+;
+; (call
+;   function: (identifier) @call_function
+;   arguments: (arguments) @call_arguments)
+; 
+; (base_call
+;   base: (identifier) @base_identifier
+;   arguments: (arguments) @base_call_arguments)
+; 
+; (attribute_call
+;   attribute: (identifier) @attribute_name
+;   arguments: (arguments) @attribute_call_arguments)
+; 
+; (subscript
+;   left: (_) @subscript_left
+;   right: (_) @subscript_right)
 
-(extends_statement
- base_type: (type) @dependency.extends)
-
-(preload_statement
- path: (string) @dependency.preload)
+(binary_operator
+  left: (_) @binary_op_left
+  op: (_) @binary_op_operator
+  right: (_) @binary_op_right)
+; 
+; (unary_operator
+;   operator: (_) @unary_op
+;   argument: (_) @unary_op_argument)
+; 
+; (pattern_binding
+;   identifier: (identifier) @pattern_binding_identifier)
+; 
+; (pattern_section
+;   pattern: (_) @pattern_value)
+; 
+; (string
+;   @string_literal)
+; 
+; (integer
+;   @integer_literal)
+; 
+; (float
+;   @float_literal)
+; 
+; (true
+;   @true_literal)
+; 
+; (false
+;   @false_literal)
+; 
+; (null
+;   @null_literal)
 `;
 
 // C++ queries - works with tree-sitter-cpp

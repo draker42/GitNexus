@@ -30,6 +30,7 @@
     "*.{js,jsx,mjs,json,css,yml,yaml}": "prettier --write"
   },
   "dependencies": {
+    "tree-sitter-gdscript": "^6.1.0",
     "typescript": "^5.9.3"
   }
 }
