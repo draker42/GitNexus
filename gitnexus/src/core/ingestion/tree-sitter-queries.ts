@@ -754,7 +754,7 @@ export const GDSCRIPT_QUERIES = `
 (class_definition
   name: (name) @class_definition_name
 ;  body: (class_body) @class_definition_body
-  extends: (extends_statement) @heritage_class_definition) @class_defintion
+  extends: (extends_statement) @heritage_class_definition) @class_definition
 ;  [(annotations) @class_definition_annotations]
 
 (class_name_statement
@@ -819,7 +819,7 @@ export const GDSCRIPT_QUERIES = `
 
 (function_definition
   name: (name) @function_name
-  parameters: (parameters) @parameters)
+  parameters: (parameters) @parameters) @function_definition
 
 (get_body body: (body)) @body
 
