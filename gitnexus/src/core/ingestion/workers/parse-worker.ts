@@ -76,6 +76,10 @@ let C: TreeSitterLanguage | null = null;
 try {
   C = requireVendoredGrammar('tree-sitter-c') as TreeSitterLanguage;
 } catch {}
+
+// tree-sitter-gdscript is a required dependency
+import GDScript from 'tree-sitter-gdscript';
+
 import { getLanguageFromFilename } from 'gitnexus-shared';
 import {
   buildConcreteTypedefDefinitionRanges,
@@ -516,6 +520,7 @@ const languageMap: Record<string, TreeSitterLanguage> = {
   [SupportedLanguages.PHP]: PHP.php_only,
   [SupportedLanguages.Ruby]: Ruby,
   [SupportedLanguages.Vue]: TypeScript.typescript,
+  [SupportedLanguages.GDScript]: GDScript,
   ...(Dart ? { [SupportedLanguages.Dart]: Dart } : {}),
   ...(Swift ? { [SupportedLanguages.Swift]: Swift } : {}),
 };

@@ -74,6 +74,12 @@ export interface FinalizeOrchestratorOptions {
    * per-language resolvers.
    */
   readonly workspaceIndex?: WorkspaceIndex;
+  /**
+   * Optional synthetic SymbolDefinitions to inject into indexes.
+   * Used by language-specific hooks that need to register built-in types
+   * or other synthetic definitions that don't exist in user code.
+   */
+  readonly syntheticDefs?: readonly SymbolDefinition[];
 }
 
 /**
@@ -116,6 +122,12 @@ export function finalizeScopeModel(
     moduleEntries.push({ filePath: file.filePath, moduleScopeId: file.moduleScope });
   }
 
+  // Include synthetic definitions (e.g., GDScript built-in Godot types)
+  // in the index build
+  if (options.syntheticDefs) {
+    for (const def of options.syntheticDefs) allDefs.push(def);
+  }
+
   // Out-of-core scope index: when enabled, build a TransitionalScopeTree
   // (validated + fully resident now; sealed to disk by run.ts just before emit so
   // the heavy Scope.bindings payload is reclaimed). Default off → the in-heap
@@ -123,6 +135,7 @@ export function finalizeScopeModel(
   const scopeTree = parseTruthyEnv(process.env.GITNEXUS_DISK_SCOPE_INDEX)
     ? new TransitionalScopeTree(allScopes)
     : buildScopeTree(allScopes);
+
   const defs = buildDefIndex(allDefs);
   const qualifiedNames = buildQualifiedNameIndex(allDefs);
   const moduleScopes = buildModuleScopeIndex(moduleEntries);

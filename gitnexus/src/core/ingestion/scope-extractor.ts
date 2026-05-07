@@ -63,6 +63,7 @@ import type {
   BindingRef,
   CaptureMatch,
   ImportEdge,
+  MixedChainStep,
   ParameterTypeClass,
   ParsedFile,
   ParsedImport,
@@ -1024,6 +1025,7 @@ function pass5CollectReferences(
     const argumentTypeClasses = parseJsonParameterTypeClassesCapture(
       match['@reference.parameter-type-classes'],
     );
+    const receiverMixedChain = extractReceiverMixedChain(match);
 
     const site: ReferenceSite = {
       name: nameCap.text,
@@ -1038,6 +1040,7 @@ function pass5CollectReferences(
       ...(arity !== undefined ? { arity } : {}),
       ...(argumentTypes !== undefined ? { argumentTypes } : {}),
       ...(argumentTypeClasses !== undefined ? { argumentTypeClasses } : {}),
+      ...(receiverMixedChain !== undefined ? { receiverMixedChain } : {}),
     };
     referenceSites.push(site);
   }
@@ -1119,6 +1122,25 @@ function extractArgumentTypes(match: CaptureMatch): readonly string[] | undefine
   try {
     const parsed = JSON.parse(cap.text);
     if (Array.isArray(parsed) && parsed.every((x) => typeof x === 'string')) return parsed;
+  } catch {
+    /* malformed — fall through */
+  }
+  return undefined;
+}
+
+function extractReceiverMixedChain(match: CaptureMatch): readonly { kind: 'field' | 'call'; name: string }[] | undefined {
+  const cap = match['@reference.chain'];
+  if (cap === undefined) return undefined;
+  try {
+    const parsed = JSON.parse(cap.text);
+    if (Array.isArray(parsed) && parsed.every((x: unknown) => 
+      typeof x === 'object' && 
+      x !== null && 
+      typeof (x as { kind?: string; name?: string }).kind === 'string' &&
+      typeof (x as { kind?: string; name?: string }).name === 'string'
+    )) {
+      return Object.freeze(parsed);
+    }
   } catch {
     /* malformed — fall through */
   }

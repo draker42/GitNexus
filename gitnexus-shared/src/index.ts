@@ -53,6 +53,7 @@ export type {
   WorkspaceIndex,
   Callsite,
   ScopeLookup,
+  MixedChainStep,
 } from './scope-resolution/types.js';
 
 // Evidence + tie-break constants (RFC Appendix A, Appendix B)

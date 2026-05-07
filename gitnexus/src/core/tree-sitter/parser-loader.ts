@@ -5,14 +5,6 @@ import { SupportedLanguages } from 'gitnexus-shared';
 import { logger } from '../logger.js';
 import { requireVendoredGrammar } from './vendored-grammars.js';
 const _require = createRequire(import.meta.url);
-let Swift: any = null;
-try {
-  Swift = _require('tree-sitter-swift');
-} catch {}
-let Dart: any = null;
-try {
-  Dart = _require('tree-sitter-dart');
-} catch {}
 
 /**
  * One row per (language, optional variant) describes how to obtain a
@@ -57,8 +49,78 @@ interface GrammarSource {
    * required parser is always an install/platform problem, never a user choice.
    */
   userSkippable?: boolean;
+}
 
-let parser: Parser | null = null;
+const ISSUES_URL = 'https://github.com/abhigyanpatwari/GitNexus/issues';
+
+const SOURCES: Record<string, GrammarSource> = {
+  [SupportedLanguages.JavaScript]: {
+    load: () => _require('tree-sitter-javascript'),
+    unavailableNote:
+      'JavaScript parsing requires `tree-sitter-javascript`. ' +
+      'Check that the package and its native binding installed cleanly (`npm ci`).',
+  },
+  [SupportedLanguages.TypeScript]: {
+    load: () => _require('tree-sitter-typescript').typescript,
+    unavailableNote:
+      'TypeScript parsing requires `tree-sitter-typescript`. ' +
+      'Check that the package and its native binding installed cleanly (`npm ci`).',
+  },
+  [`${SupportedLanguages.TypeScript}:tsx`]: {
+    load: () => _require('tree-sitter-typescript').tsx,
+    unavailableNote:
+      'TSX parsing requires `tree-sitter-typescript` (re-uses the same native binding as TS).',
+  },
+  [SupportedLanguages.Python]: {
+    load: () => _require('tree-sitter-python'),
+    unavailableNote:
+      'Python parsing requires `tree-sitter-python`. Check the install and native binding.',
+  },
+  [SupportedLanguages.Java]: {
+    load: () => _require('tree-sitter-java'),
+    unavailableNote:
+      'Java parsing requires `tree-sitter-java`. Check the install and native binding.',
+  },
+  // tree-sitter-c-sharp declares `type: "module"` with `main: "bindings/node"`
+  // (no extension) and no `exports` field, which triggers Node 22's DEP0151
+  // deprecation warning on the bare-package import. The explicit subpath
+  // bypasses the deprecated ESM main-field resolution. (#1013)
+  [SupportedLanguages.CSharp]: {
+    load: () => _require('tree-sitter-c-sharp/bindings/node/index.js'),
+    unavailableNote:
+      'C# parsing requires `tree-sitter-c-sharp/bindings/node/index.js`. ' +
+      `If the subpath is missing, see ${ISSUES_URL}/1013.`,
+  },
+  [SupportedLanguages.CPlusPlus]: {
+    load: () => _require('tree-sitter-cpp'),
+    unavailableNote:
+      'C++ parsing requires `tree-sitter-cpp`. Check the install and native binding.',
+  },
+  [SupportedLanguages.Go]: {
+    load: () => _require('tree-sitter-go'),
+    unavailableNote: 'Go parsing requires `tree-sitter-go`. Check the install and native binding.',
+  },
+  [SupportedLanguages.Rust]: {
+    load: () => _require('tree-sitter-rust'),
+    unavailableNote:
+      'Rust parsing requires `tree-sitter-rust`. Check the install and native binding.',
+  },
+  [SupportedLanguages.PHP]: {
+    load: () => _require('tree-sitter-php').php_only,
+    unavailableNote:
+      'PHP parsing requires `tree-sitter-php` (the `php_only` export). ' +
+      'Check the install and native binding.',
+  },
+  [SupportedLanguages.Ruby]: {
+    load: () => _require('tree-sitter-ruby'),
+    unavailableNote:
+      'Ruby parsing requires `tree-sitter-ruby`. Check the install and native binding.',
+  },
+  [SupportedLanguages.Vue]: {
+    load: () => _require('tree-sitter-typescript').typescript,
+    unavailableNote:
+      'Vue parsing piggybacks on `tree-sitter-typescript`. Check the install and native binding.',
+  },
 
   // tree-sitter-c is a core grammar, vendored prebuild-only (under
   // gitnexus/vendor/tree-sitter-c) with GitNexus-built prebuilds for every

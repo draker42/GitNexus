@@ -23,7 +23,8 @@
  * Plan: `docs/plans/2026-04-20-001-refactor-emit-pipeline-generalization-plan.md`.
  */
 
-import type { ParsedFile, RegistryProviders } from 'gitnexus-shared';
+import type { ParsedFile, RegistryProviders, SymbolDefinition } from 'gitnexus-shared';
+import { SupportedLanguages } from 'gitnexus-shared';
 import type { KnowledgeGraph } from '../../../graph/types.js';
 import { generateId } from '../../../../lib/utils.js';
 import { lookupOwnedMembersByOwner } from '../../model/owned-members-lookup.js';
@@ -84,6 +85,101 @@ import { TransitionalScopeTree } from '../../../../storage/scope-index-store.js'
 import { forceGc } from '../../../../storage/parsedfile-store.js';
 
 import { logger } from '../../../logger.js';
+
+/**
+ * Generate synthetic SymbolDefinitions for GDScript built-in types.
+ * These enable method resolution for calls like `Button.new()` and `Signal.connect()`.
+ */
+function createGdscriptBuiltinDefs(): SymbolDefinition[] {
+  const classes = [
+    'Object', 'Node', 'Node2D', 'Node3D', 'Control', 'CanvasItem', 'Spatial',
+    'Button', 'Label', 'LineEdit', 'TextEdit', 'TextureRect', 'Panel',
+    'PanelContainer', 'HBoxContainer', 'VBoxContainer', 'GridContainer',
+    'CenterContainer', 'MarginContainer', 'ScrollContainer', 'ItemList',
+    'Tree', 'GraphEdit', 'FileDialog', 'AcceptDialog', 'ProgressBar',
+    'TextureProgressBar', 'Slider', 'SpinBox', 'CheckBox', 'OptionButton',
+    'Popup', 'PopupMenu', 'MenuBar', 'TabContainer', 'Tabs', 'RichTextLabel',
+    'Separator', 'TextureButton', 'ColorRect', 'Resource', 'PackedScene',
+    'Script', 'Sprite2D', 'Sprite3D', 'Texture', 'ImageTexture',
+    'AnimatedSprite2D', 'AnimatedSprite3D', 'AnimationPlayer', 'AnimationTree',
+    'CanvasModulate', 'AudioStreamPlayer', 'AudioStreamPlayer2D',
+    'AudioStreamPlayer3D', 'AudioListener2D', 'AudioListener3D', 'Timer',
+    'Vector2', 'Vector3', 'Vector4', 'Rect2', 'Transform2D', 'Transform3D',
+    'Plane', 'AABB', 'Quaternion', 'Color',
+  ];
+
+  const defs: SymbolDefinition[] = [];
+
+  // Add class definitions
+  for (const name of classes) {
+    defs.push({
+      nodeId: `__builtin:${name}`,
+      type: 'Class',
+      qualifiedName: name,
+      filePath: '<godot-builtins>',
+    });
+  }
+
+  // Add "new" static method to all class types (Button.new(), Label.new(), etc.)
+  for (const name of classes) {
+    defs.push({
+      nodeId: `__builtin:${name}.new`,
+      type: 'Method',
+      qualifiedName: 'new',
+      filePath: '<godot-builtins>',
+      ownerId: `__builtin:${name}`,
+    });
+  }
+
+  // Add Signal class with connect method (btn.pressed returns a Signal, connect() is called on it)
+  defs.push({
+    nodeId: '__builtin:Signal',
+    type: 'Class',
+    qualifiedName: 'Signal',
+    filePath: '<godot-builtins>',
+  });
+
+  // Signal.connect() method
+  defs.push({
+    nodeId: '__builtin:Signal.connect',
+    type: 'Method',
+    qualifiedName: 'connect',
+    filePath: '<godot-builtins>',
+    ownerId: '__builtin:Signal',
+  });
+
+  // Add text property for Label/Etc. (obj.text = "...")
+  const typesWithText = ['Label', 'LineEdit', 'TextEdit', 'Button'];
+  for (const name of typesWithText) {
+    defs.push({
+      nodeId: `__builtin:${name}.text`,
+      type: 'Property',
+      qualifiedName: 'text',
+      filePath: '<godot-builtins>',
+      ownerId: `__builtin:${name}`,
+    });
+  }
+
+  // Add signal properties on Button (pressed returns Signal) - needed for btn.pressed.connect()
+  const signalProps = [
+    { owner: 'Button', signals: ['pressed', 'button_down', 'button_up', 'toggled'] },
+    { owner: 'Control', signals: ['focus_entered', 'focus_exited', 'mouse_entered', 'mouse_exited', 'size_flags_changed'] },
+    { owner: 'Node', signals: ['ready', 'process', 'physics_process'] },
+  ];
+  for (const { owner, signals } of signalProps) {
+    for (const signal of signals) {
+      defs.push({
+        nodeId: `__builtin:${owner}.${signal}`,
+        type: 'Property',
+        qualifiedName: signal,
+        filePath: '<godot-builtins>',
+        ownerId: `__builtin:${owner}`,
+      });
+    }
+  }
+
+  return defs;
+}
 
 /**
  * Emit one class-owned inheritance edge directly (the inheritance pre-pass is
@@ -559,6 +655,13 @@ export function runScopeResolution(
   logHeapProbe('sr-post-nodeLookup', `lang=${provider.language}`);
 
   const resolutionConfig = input.resolutionConfig;
+
+  // Inject synthetic built-in type definitions for GDScript
+  const syntheticDefs =
+    provider.language === SupportedLanguages.GDScript
+      ? createGdscriptBuiltinDefs()
+      : undefined;
+
   const finalized = finalizeScopeModel(parsedFiles, {
     hooks: {
       resolveImportTarget: (targetRaw, fromFile) =>
@@ -568,6 +671,7 @@ export function runScopeResolution(
       mergeBindings: (existing, incoming, scopeId) =>
         provider.mergeBindings(existing, incoming, scopeId),
     },
+    syntheticDefs,
   });
   logHeapProbe('sr-post-finalize', `lang=${provider.language}`);
   const preEmittedInheritanceSites = preEmitInheritanceEdges(graph, finalized, nodeLookup);

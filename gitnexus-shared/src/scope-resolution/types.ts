@@ -25,6 +25,11 @@
 import type { NodeLabel } from '../graph/types.js';
 import type { SymbolDefinition } from './symbol-definition.js';
 
+// ─── MixedChainStep (shared with call-analysis.ts) ─────────────────────────
+
+/** One step in a mixed receiver chain (field access or method call). */
+export type MixedChainStep = { readonly kind: 'field' | 'call'; readonly name: string };
+
 // ─── §2.1 Type aliases ──────────────────────────────────────────────────────
 
 /** Stable per-(file, range, kind) scope identifier; interned for identity-fast equality. */

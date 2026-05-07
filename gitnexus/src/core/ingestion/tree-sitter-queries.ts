@@ -882,6 +882,55 @@ export const GO_QUERIES = `
 `;
 
 export const GDSCRIPT_QUERIES = `
+;; Scopes (RFC 5.1 scope extraction)
+;; The source node serves as the module scope for each file
+(source) @scope.module
+
+;; Class scopes
+(class_definition) @scope.class
+
+;; Function/method scopes
+(function_definition) @scope.function
+
+; Class definition with name capture for scope resolution
+; Legacy pattern: @definition.class used by parse-worker/sequential extractor
+(class_definition
+  name: (name) @name) @definition.class
+
+; Scope-resolution pattern: @declaration.class
+(class_definition
+  name: (name) @declaration.name) @declaration.class
+
+;; class_name_statement defines the class at file scope (declaration only; @scope.class synthesized by provider)
+; Legacy pattern: @definition.class used by parse-worker/sequential extractor
+(class_name_statement
+  name: (name) @name) @definition.class
+
+; Scope-resolution pattern: @declaration.class
+(class_name_statement
+  name: (name) @declaration.name) @declaration.class
+
+; Function definition with name capture
+; Legacy pattern: @definition.function used by parse-worker/sequential extractor
+(function_definition
+  name: (name) @name) @definition.function
+
+; Scope-resolution pattern: @declaration.function
+(function_definition
+  name: (name) @declaration.name) @declaration.function
+
+;; Variable declarations
+(variable_statement
+  name: (name) @declaration.name) @declaration.variable
+
+;; Signal definitions
+(signal_statement
+  name: (name) @declaration.name) @declaration.signal
+
+;; Enum definitions
+(enum_definition
+  name: (name) @declaration.name) @declaration.enum
+
 (annotation
   arguments: (arguments) @annotation_arguments)
   
@@ -946,9 +995,7 @@ export const GDSCRIPT_QUERIES = `
 
 (class_definition
   name: (name) @class_definition_name
-;  body: (class_body) @class_definition_body
   extends: (extends_statement) @heritage_class_definition) @class_definition
-;  [(annotations) @class_definition_annotations]
 
 (class_name_statement
   name: (name) @class_name
@@ -993,8 +1040,6 @@ export const GDSCRIPT_QUERIES = `
    body: (enumerator_list) @enum_definition_body
 ) @enum_definition
 
-;(enumerator (enumerator)) @enumerator
-
 (enumerator_list (enumerator)) @enumerator_list
 
 (export_variable_statement
@@ -1005,6 +1050,15 @@ export const GDSCRIPT_QUERIES = `
 (expression_statement (_)) @expression_statement
 
 (extends_statement (_)) @extends_statement
+
+;; Heritage captures for EXTENDS edges
+;; GDScript uses class_name_statement to name the class and extends_statement for parent
+;; Note: The order in source is extends_statement FIRST, then class_name_statement
+(source
+  (extends_statement
+    (type (identifier) @heritage.extends))
+  (class_name_statement
+    name: (name) @heritage.class)) @heritage
 
 (for_statement
   left: (identifier) @for_iterator
@@ -1066,7 +1120,6 @@ export const GDSCRIPT_QUERIES = `
 (pattern_guard (_expression)) @pattern_guard
 
 (pattern_section
-;  body: (body) @pattern_name
   [
     (_pattern) @pattern
     (pattern_guard) @pattern_guard
@@ -1082,9 +1135,6 @@ export const GDSCRIPT_QUERIES = `
     (lambda) @return_value
   ]
 ) @return_statement
-
-;(setbody
-;  (parameters)) @set_body
 
 (setget
   get: (_) @setget_get
@@ -1118,8 +1168,6 @@ export const GDSCRIPT_QUERIES = `
 (unary_operator
   (_primary_expression)) @unary_op
 
-;(value (escape_sequence)) @value
-
 (variable_statement
   name: (name) @variable_name
   value: (_) @variable_value) @variable_statement
@@ -1128,6 +1176,75 @@ export const GDSCRIPT_QUERIES = `
 
 (while_statement
   condition: (_expression) @while_condition)
+
+;; --- Import/Dependency queries (preload/load) ---
+;; preload("res://path/to/script.gd") and load("res://path/to/resource.tres)
+(base_call
+  (identifier) @import.func_name
+  (#match? @import.func_name "^(preload|load)$")
+  arguments: (arguments
+    (string) @import.source)) @import.statement
+
+;; --- Signal connection tracking (.connect()) ---
+;; btn.pressed.connect(_on_button_pressed) or btn.pressed.connect(_on_button_pressed.bind(i))
+;; Captures: signal.receiver (btn), signal.name (pressed), signal.callable (the callback)
+(attribute
+  (identifier) @signal.receiver
+  .
+  (identifier) @signal.name
+  .
+  (attribute_call
+    (identifier) @signal.connect
+    (#eq? @signal.connect "connect")
+    arguments: (arguments
+      [
+        (identifier) @signal.callable
+        (attribute) @signal.callable
+      ]))) @signal.connection
+
+;; --- Node references ($Player, %UniqueNode) ---
+;; $Player.take_damage() or %UniqueNode.value = 50
+(get_node) @node.reference
+
+;; --- Super calls (super._process(delta)) ---
+;; identifier "super" followed by method call
+(attribute
+  (identifier) @super.keyword
+  (#eq? @super.keyword "super")
+  .
+  (attribute_call
+    (identifier) @super.method)) @super.call
+
+;; --- Method calls for call graph: attribute calls ---
+;; $Player.take_damage() or health_changed.connect()
+(attribute_call
+  (identifier) @call.name) @call
+
+;; --- Direct function calls ---
+;; take_damage() or emit_signal()
+(base_call
+  (identifier) @call.name) @call
+
+;; References - call sites for call resolution
+(call
+  (identifier) @reference.name) @reference.call.free
+
+;; Method calls: obj.method() or obj.prop.method() - attribute with attribute_call child
+;; The first child after attribute is the receiver, the identifier inside attribute_call is the method name
+;; Use "." predicate to ensure only the first identifier/child is captured as receiver
+;; Also handle call/base_call as receiver for chained calls like get_player().take_damage()
+(attribute
+  .
+  [(identifier) (call) (base_call)] @reference.receiver
+  (attribute_call
+    (identifier) @reference.name)) @reference.call.member
+
+;; Write access: obj.field = value - attribute inside assignment
+(assignment
+  (attribute
+    .
+    (identifier) @reference.receiver
+    (identifier) @reference.name)) @reference.write.member
 
 (float)
 
