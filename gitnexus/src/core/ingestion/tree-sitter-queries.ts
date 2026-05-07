@@ -688,177 +688,263 @@ export const GO_QUERIES = `
     field: (field_identifier) @assignment.property)) @assignment
 `;
 
-// GDScript queries - works with tree-sitter-gdscript
-//export const GDSCRIPT_QUERIES = `
-//; ── Classes ───────────────────────────────────────────────────────
-//(class_definition
-//  name: (name) @gdscript.class_name
-//  extends_statement: (extends_statement
-//;    type: (type) @gdscript.extends)) @gdscript.class_definition
-//
-//; ── Functions ─────────────────────────────────────────────────────
-//(function_definition
-//  name: (name) @gdscript.function_name) @gdscript.function_definition
-//
-//; ── Signals ───────────────────────────────────────────────────────
-//;(signal_definition
-//;  name: (name) @gdscript.signal_name) @gdscript.signal_definition
-//
-//; ── Enums ─────────────────────────────────────────────────────────
-//(enum_definition
-//  name: (name) @gdscript.enum_name) @gdscript.enum_definition
-//
-//; ── Constants ─────────────────────────────────────────────────────
-//(const_definition
-//  name: (name) @gdscript.const_name) @gdscript.const_definition
-//
-//; ── Variables ─────────────────────────────────────────────────────
-//;(variable_statement
-//;  name: (name) @gdscript.variable_name) @gdscript.variable_statement
-//
-//; ── Assignments ───────────────────────────────────────────────────
-//(assignment
-//  left: (_) @gdscript.assignment_left
-//  right: (_) @gdscript.assignment_right) @gdscript.assignment
-//
-//(augmented_assignment
-//  left: (_) @gdscript.augmented_assignment_left
-//  op: (_) @gdscript.augmented_assignment_op
-//  right: (_) @grand_gdscript_augmented_assignment_right) @gdscript.augmented_assignment
-//`;
-
 export const GDSCRIPT_QUERIES = `
+(annotation
+  arguments: (arguments) @annotation_arguments)
+  
+(annotations
+  [(annotation)] @annotations)
+
+(arguments (_)) @arguments
+
+(array [
+  (_expression) @array_expression
+  (lambda) @array_expression
+])
+
+(assignment
+  left: (_expression) @assignment_left
+  right: [ 
+    (_expression) @assignment_right
+    (lambda) @assignment_right
+  ]) @assignment
+
+(augmented_assignment
+  left: (_expression) @augmented_assignment_left
+  op: (_) @augmented_assignment_op
+  right: [
+    (_expression) @return_value
+    (lambda) @return_value
+  ] @augmented_assignment_right) @augmented_assigment
+  
+(attribute [
+  (_attribute_expression) @attribute_expression
+  (attribute_call)
+  (attribute_subscript) 
+] @attribute_value)
+
+(attribute_call
+  arguments: (arguments) @attribute_call_arguments) @attribute_call
+
+(attribute_subscript
+  arguments: (subscript_arguments) @subscript_args) @attribute_subscript
+
+(await_expression (_expression)) @await_expression
+
+(base_call
+  arguments: (arguments) @base_call_arguments
+) @base_call
+
+(binary_operator
+  left: (_primary_expression) @binary_op_left
+  op: (_) @binary_op_operator
+  right: (_primary_expression) @binary_op_right) @binary_op
+
+(body (_)) @body
+
+(break_statement)
+
+(call
+  arguments: (arguments) @call_arguments) @call_function
+
+(class_body [
+  (_) @class_body_types
+  ]) @class_body
+
 (class_definition
-  name: (name) @class_name)
+  name: (name) @class_definition_name
+;  body: (class_body) @class_definition_body
+  extends: (extends_statement) @heritage_class_definition) @class_defintion
+;  [(annotations) @class_definition_annotations]
+
+(class_name_statement
+  name: (name) @class_name
+  extends: (extends_statement) @heritage_class_name_statement) @class_name_statement
+
+(conditional_expression
+  left: (_expression)
+  right: (_expression)) @conditional_expression
+
+(const_statement
+  name: (name) @const_statement_name
+   type: [
+     (inferred_type) @const_type
+     (type) @const_type
+   ]
+   value: [
+     (_expression) @const_value
+     (lambda) @const_value
+   ]
+) @const_statement
+
+(constructor_definition
+  arguments: (arguments)) @constructor_definition
+
+(continue_statement)
+
+(default_parameter (_)) @default_parameter
+
+(dictionary [
+  (_primary_expression) @dictionary_primary_expression
+  (pair) @dictionary_pair
+  (pattern_open_ending)
+]) @dictionary
+
+(elif_clause
+  condition: (_expression) )@elif_clause
+    
+(else_clause) @else_cause
+  
+(enum_definition
+   name: (name) @enum_definition_name
+   body: (enumerator_list) @enum_definition_body
+) @enum_definition
+
+;(enumerator (enumerator)) @enumerator
+
+(enumerator_list (enumerator)) @enumerator_list
+
+(export_variable_statement
+  arguments: (arguments)
+  name: (name)
+  setget: (setget)) @export_variable_statement
+
+(expression_statement (_)) @expression_statement
+
+(extends_statement (_)) @extends_statement
+
+(for_statement
+  left: (identifier) @for_iterator
+  right: (_expression) @for_iterable) @for_statement
 
 (function_definition
   name: (name) @function_name
   parameters: (parameters) @parameters)
 
-(variable_statement
-  name: (name) @variable_name
-  value: (_) @variable_value)
+(get_body body: (body)) @body
 
-(const_statement
-  name: (name) @const_name
-  value: (_) @const_value)
+(get_node)
 
-; (enum_definition
-;   name: (name) @enum_name
-;   body: (enumerator_list @enum_body))
+(getter)
+
+(identifier)
+
+(if_statement
+  body: (body) @if_body
+  alternative: [
+    (elif_clause) @elif_clause
+    (else_clause) @else_clause
+  ]
+) @if_statement
+
+(inferred_type)
+
+(lambda
+  name: (name)
+  parameters: (parameters)) @lambda_body
+
+(match_body [
+  (annotation) @match_body_annotation
+  (pattern_section) @match_body_pattern_section
+]) @match_body
+
+(match_statement
+  body: (match_body) @match_body)
+  value: (_expression) @match_value
+
+(name) @name
+
+(node_path (escape_sequence)) @node_path
+
+(onready_variable_statement
+  setget: (setget)) @on_ready_variable_statement
+
+(pair
+  left: (_) @pair_left
+  value: (_) @pair_value) @pair
+
+(parenthesized_expression (_)) @parenthesized_expression
+
+(pass_statement) @pass_statement
+
+(pattern_binding
+  (identifier) @pattern_binding_identifier)
+
+(pattern_guard (_expression)) @pattern_guard
+
+(pattern_section
+;  body: (body) @pattern_name
+  [
+    (_pattern) @pattern
+    (pattern_guard) @pattern_guard
+  ]) @pattern_section
+
+(region_start (region_label)) @region_start
+
+(remote_keyword) @remote_keyword
+
+(return_statement
+  [
+    (_expression) @return_value
+    (lambda) @return_value
+  ]
+) @return_statement
+
+;(setbody
+;  (parameters)) @set_body
+
+(setget
+  get: (_) @setget_get
+  set: (_) @setget_set
+  ) @setget
+
+(setter) @setter
 
 (signal_statement
   name: (name) @signal_name
-  parameters: (parameters) @signal_parameters)
+  parameters: (parameters) @signal_parameters) @signal_statement
 
-;(class_definition
-;  name: (_) @heritage.class
-;  body: (class_body
-;    (extends_statement
-;      type: (_) @heritage.extends))) @heritage
+(source (_)) @source
 
-;(class_specifier name: (type_identifier) @heritage.class
-;  (base_class_clause (type_identifier) @heritage.extends)) @heritage
-;(class_specifier name: (type_identifier) @heritage.class
-;  (base_class_clause (access_specifier) (type_identifier) @heritage.extends)) @heritage
+(string (escape_sequence) @escape_seq) @string
 
-(class_name_statement
-  name: (name) @class_name)
+(string_name (escape_sequence) @escape_seq) @string_name
 
-(for_statement
-  left: (identifier) @for_iterator
-  right: (_) @for_iterable)
+(subscript arguments: (subscript_arguments)) @subscript
+
+(subscript_arguments (_)) @subscript_arguments
+
+(type (_)) @type
+
+(typed_default_parameter
+  type: (inferred_type) @typed_default_inferred_type
+  (_)) @typed_default_parameter
+
+(typed_parameter type: (type)) @typed_parameter
+
+(unary_operator
+  (_primary_expression)) @unary_op
+
+;(value (escape_sequence)) @value
+
+(variable_statement
+  name: (name) @variable_name
+  value: (_) @variable_value) @variable_statement
+
+(variadic_parameter (_parameters)) @variadic_parameter
 
 (while_statement
-  condition: (_) @while_condition)
+  condition: (_expression) @while_condition)
 
-(if_statement
-  condition: (_) @if_condition
-  body: (body) @if_body)
+(float)
 
-(match_statement
-  value: (_) @match_value
-  body: (match_body) @match_body)
+(integer)
 
-;(return_statement
-;  value: (_) @return_value)
+(true)
 
-(break_statement)
-(continue_statement)
-(pass_statement)
+(false)
 
-(assignment
-  left: (_) @assignment_left
-  right: (_) @assignment_right)
-
-(augmented_assignment
-  left: (_) @augmented_assignment_left
-  op: (_) @augmented_assignment_op
-  right: (_) @augmented_assignment_right)
-
-(array [
-  (_) @array_element
-])
-
-; (dictionary [
-;   (pair @dictionary_pair)
-; ])
-
-(annotation
-  arguments: (arguments) @annotation_arguments)
-
-; (attribute
-;   attribute: (_) @attribute_name
-;   children: (_) @attribute_value)
-;
-; (call
-;   function: (identifier) @call_function
-;   arguments: (arguments) @call_arguments)
-; 
-; (base_call
-;   base: (identifier) @base_identifier
-;   arguments: (arguments) @base_call_arguments)
-; 
-; (attribute_call
-;   attribute: (identifier) @attribute_name
-;   arguments: (arguments) @attribute_call_arguments)
-; 
-; (subscript
-;   left: (_) @subscript_left
-;   right: (_) @subscript_right)
-
-(binary_operator
-  left: (_) @binary_op_left
-  op: (_) @binary_op_operator
-  right: (_) @binary_op_right)
-; 
-; (unary_operator
-;   operator: (_) @unary_op
-;   argument: (_) @unary_op_argument)
-; 
-; (pattern_binding
-;   identifier: (identifier) @pattern_binding_identifier)
-; 
-; (pattern_section
-;   pattern: (_) @pattern_value)
-; 
-; (string
-;   @string_literal)
-; 
-; (integer
-;   @integer_literal)
-; 
-; (float
-;   @float_literal)
-; 
-; (true
-;   @true_literal)
-; 
-; (false
-;   @false_literal)
-; 
-; (null
-;   @null_literal)
+(null)
 `;
 
 // C++ queries - works with tree-sitter-cpp
