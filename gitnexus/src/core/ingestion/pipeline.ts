@@ -40,6 +40,11 @@ import {
   type ProcessesOutput,
 } from './pipeline-phases/index.js';
 
+import { GDScriptResolver } from './languages/gdscript/gdscript-resolver';
+
+const pipeline = new IngestionPipeline();
+pipeline.registerResolver(new GDScriptResolver());
+
 export interface PipelineOptions {
   /** Skip MRO, community detection, and process extraction for faster test runs. */
   skipGraphPhases?: boolean;
