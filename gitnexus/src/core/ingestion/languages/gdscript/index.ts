@@ -120,73 +120,35 @@ export const gdscriptProvider: LanguageProvider = defineLanguage({
 
     /**
    * The "Semanticist": Interprets imports (preload/extends).
-   * FIXED: Uses the Capture range to find the node in the tree,
-   * respecting the immutable Capture interface.
    */
-  interpretImport: (allMatches) => {
+  interpretImport: (captures) => {
+    if (!captures) return null;
 
-    if (!allMatches) return null;
-                // || allMatches.length === 0)
-
-    // 1. Flatten the array of matches into a single searchable object
-    // This allows us to check 'preload' or 'extends' regardless of which match they belong to.
-    const allCaptures: Record<string, any> = {};
-    allCaptures.forEach(match => Object.assign(allCaptures, match));
-
-    // 2. Use the first capture's range to find the corresponding node in our cache
-    const firstCapture = Object.values(allCaptures)[0];
-    if (!firstCapture) return null;
-    let node: Parser.SyntaxNode | undefined;
-
-    for (const cachedNode of nodeCache.values()) {
-      if (
-        cachedNode.startPosition.row + 1 === firstCapture.range.startLine &&
-        cachedNode.startPosition.column === firstCapture.range.startCol
-      ) {
-        node = cachedNode;
-        break;
-      }
-    }
-    if (!node) return null;
-    // 3. Perform the semantic logic
-    // Handle 'extends'
-    if (allCaptures['extends']) {
-      const targetNode = node.children.find(c => 
-        c.type === 'string' || c.type === 'identifier' || c.type === 'string_literal'
-      );
-      if (targetNode) {
-        return {
-          kind: 'extends',
-          targetRaw: targetNode.text.replace(/['"]/g, ''),
-        } as any;
-      }
-    }
-    // Handle 'preload'
-    if (allCaptures['preload']) {
-      const argumentNode = node.children.find(c => 
-        c.type === 'string' || c.type === 'string_literal'
-      );
-      if (argumentNode) {
-        return {
-          kind: 'import',
-          targetRaw: argumentNode.text.replace(/['"]/g, ''),
-        } as any;
-      }
+    // Handle extends (class inheritance)
+    if (captures['@extends']) {
+      return {
+        kind: 'extends',
+        targetRaw: captures['@extends'].text.replace(/['"]/g, ''),
+      } as any;
     }
 
-    // 3. Handle class_definition as a "Symbol Export"
-    // If the node being processed is a class_definition, we treat it as a
-    // declaration that populates the global scope.
-    if (node.type === 'class_definition') {
-      const classNameNode = node.children.find(c => c.type === 'identifier' || c.type === 'name');
-      if (classNameNode) {
-        return {
-          kind: 'symbol_export',
-          symbolName: classNameNode.text,
-          targetRaw: classNameNode.text.replace(/['"]/g, ''),
-        } as any;
-      }
+    // Handle preload/load imports (res:// URIs)
+    if (captures['@import.statement'] && captures['@import.source']) {
+      return {
+        kind: 'import',
+        targetRaw: captures['@import.source'].text.replace(/['"]/g, ''),
+      } as any;
     }
+
+    // Handle class_definition as a "Symbol Export"
+    if (captures['@definition.class']) {
+      return {
+        kind: 'symbol_export',
+        symbolName: captures['@definition.class'].text.replace(/['"]/g, ''),
+        targetRaw: captures['@definition.class'].text.replace(/['"]/g, ''),
+      } as any;
+    }
+
     return null;
   },
 

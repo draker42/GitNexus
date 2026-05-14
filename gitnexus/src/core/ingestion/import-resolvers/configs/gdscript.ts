@@ -1,21 +1,13 @@
 /**
- * GDSCript import resolution config.
- * Require/require_relative suffix matching — no standard fallback.
+ * GDScript import resolution config.
+ * Handles res:// URI scheme for preload() and load() calls.
  */
 
 import { SupportedLanguages } from 'gitnexus-shared';
-import type { ImportResolutionConfig, ImportResolverStrategy } from '../types.js';
-import { suffixResolve } from '../utils.js';
+import type { ImportResolutionConfig } from '../types.js';
+import { gdscriptResResolver } from '../gdscript.js';
 
-
-/** GDScript require/require_relative resolution strategy. */
-// export const gdscriptRequireStrategy: ImportResolverStrategy = (rawImportPath, _filePath, ctx) => {
-  const pathParts = rawImportPath.replace(/^\.\//, '').split('/').filter(Boolean);
-//   const resolved = suffixResolve(pathParts, ctx.normalizedFileList, ctx.allFileList, ctx.index);
-//   return resolved ? { kind: 'files', files: [resolved] } : null;
-// };
-
-// export const gdscriptImportConfig: ImportResolutionConfig = {
-//   language: SupportedLanguages.GDScript,
-//   strategies: [gdscriptRequireStrategy],
-// };
+export const gdscriptImportConfig: ImportResolutionConfig = {
+  language: SupportedLanguages.GDScript,
+  strategies: [gdscriptResResolver],
+};

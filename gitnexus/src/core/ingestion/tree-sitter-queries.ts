@@ -936,6 +936,14 @@ export const GDSCRIPT_QUERIES = `
 (while_statement
   condition: (_expression) @while_condition)
 
+;; --- Import/Dependency queries (preload/load) ---
+;; preload("res://path/to/script.gd") and load("res://path/to/resource.tres)
+(base_call
+  (identifier) @import.func_name
+  (#match? @import.func_name "^(preload|load)$")
+  arguments: (arguments
+    (string) @import.source)) @import.statement
+
 (float)
 
 (integer)

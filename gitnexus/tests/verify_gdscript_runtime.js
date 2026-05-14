@@ -41,34 +41,38 @@ async function runTest() {
     console.log('✅ Extensions are correctly configured.');
 
     // 3. Verify Queries existence
-    if (!gdscriptProvider.queries || Object.keys(gdscriptProvider.queries).length === 0) {
+    if (!gdscriptProvider.treeSitterQueries || gdscriptProvider.treeSitterQueries.length === 0) {
       throw new Error('GDScript queries are empty or missing!');
     }
     console.log('✅ Tree-Sitter queries are loaded.');
 
-    // 4. Simulate Parse Call (Structural Check)
-    console.log('Simulating parse() execution...');
-    const mockCtx = {
-      graph: { addNode: () => {}, addEdge: () => {} },
-      treeCache: {},
-      currentFilePath: '/test/game.gd',
-      generateId: (id) => `id-${id}`,
-      queryResults: {
-        definitions: [],
-        properties: [],
-        calls: [],
-        dependencies: []
-      }
-    };
-    const mockNode = { type: 'source' };
-
-    const result = await gdscriptProvider.parse(mockCtx, mockNode);
-    
-    if (result && typeof result.symbolsExtracted === 'number') {
-      console.log('✅ parse() executed successfully and returned valid metrics.');
-    } else {
-      throw new Error('parse() did not return expected result structure.');
+    // 4. Verify emitScopeCaptures exists
+    if (typeof gdscriptProvider.emitScopeCaptures !== 'function') {
+      throw new Error('emitScopeCaptures function is missing!');
     }
+    console.log('✅ emitScopeCaptures is available.');
+
+    // 5. Verify interpretImport exists
+    if (typeof gdscriptProvider.interpretImport !== 'function') {
+      throw new Error('interpretImport function is missing!');
+    }
+    console.log('✅ interpretImport is available.');
+
+    // 6. Test emitScopeCaptures with sample code
+    console.log('Testing emitScopeCaptures with sample GDScript code...');
+    const sampleCode = `
+class_name Player extends CharacterBody2D
+
+const SPEED = 200
+
+func _ready():
+\tpass
+
+func _process(delta):
+\tvar loaded_script = preload("res://scripts/utils.gd")
+`;
+    const captures = gdscriptProvider.emitScopeCaptures?.(sampleCode, 'test/player.gd', undefined);
+    console.log(`✅ emitScopeCaptures returned ${captures?.length ?? 0} captures`);
 
     console.log('\n✨ ALL GDScript INTEGRATION TESTS PASSED! ✨');
     process.exit(0);

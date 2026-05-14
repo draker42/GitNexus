@@ -1,6 +1,11 @@
 import { findProjectRoot } from '../../utils/project-utils.js';
+import type { ImportResolverStrategy, ResolveCtx } from './types.js';
 
-export const gdscriptResResolver: ImportResolverStrategy = (rawPath, filePath, ctx) => {
+/**
+ * GDScript import resolver strategy for res:// URI scheme.
+ * Handles `preload("res://...")` and `load("res://...")` patterns.
+ */
+export const gdscriptResResolver: ImportResolverStrategy = (rawPath, _filePath, ctx) => {
   if (!rawPath.startsWith("res://")) return null; // Pass to next strategy
 
   // 1. Convert res:// to filesystem path
