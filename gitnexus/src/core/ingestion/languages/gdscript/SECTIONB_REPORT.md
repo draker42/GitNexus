@@ -24,3 +24,30 @@ The GDScript provider now:
 - Extracts 23 captures from sample code including class definitions, extends, and preload statements
 - Has working `importResolver` for `res://` URI scheme
 - Has proper `interpretImport` for handling preload/load imports
+
+After merge from origin/main, several fixes were required:
+
+## ✅ Issue Fixed
+
+The analyzer was skipping GDScript files because **`tree-sitter-gdscript` was missing from the `SOURCES` dictionary** in `parser-loader.ts`. This was introduced during the refactor.
+
+## 📋 Final Summary
+
+### Steps Completed:
+1. ✅ **Merged main** (124 commits) into `feature/gdscript-support`
+2. ✅ **Added required properties** to GDScript provider:
+   - `entryPointPatterns: [/^func_/, /^var_/]`
+   - `astFrameworkPatterns: []`
+3. ✅ **Fixed `parser-loader.ts`** - Added GDScript to `SOURCES` dictionary
+4. ✅ **Restored `test:gdscript` script** in package.json
+5. ✅ **All tests pass** - 23 captures extracted from sample GDScript code
+6. ✅ **Analyzer works** - 1,074 nodes indexed (vs 66 before)
+
+### Commits Pushed to Your Fork:
+```
+9df05903 Add GDScript to parser-loader SOURCES
+74af7d5a Add test:gdscript script and tree-sitter-gdscript dependency
+2ea41162 Add SECTIONB_REPORT.md documenting Phase B implementation details
+502d1bf9 Merge remote-tracking branch 'origin/main' into feature/gdscript-support
+... (plus your original Phase A & Phase B commits)
+```
