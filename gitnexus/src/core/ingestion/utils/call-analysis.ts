@@ -598,6 +598,32 @@ export function extractMixedChain(
           }
         }
       } else if (current.type === 'attribute') {
+        // GDScript: attribute node can represent either pure field access or a method call chain.
+        // Check for attribute_call child - if present, this is a method call chain.
+        const hasAttributeCall = Array.from(current.children ?? []).some(
+          (c) => c.type === 'attribute_call' && c.isNamed
+        );
+        if (hasAttributeCall) {
+          // Method call chain: walk the chain to find the base receiver
+          // namedChildren are: identifier(btn), identifier(pressed), ..., attribute_call(...)
+          // We need to find the first identifier as base receiver and all intermediate identifiers as field steps
+          const namedChildren: SyntaxNode[] = [];
+          for (const child of current.children ?? []) {
+            if (child.isNamed && child.type !== 'attribute_call') namedChildren.push(child);
+          }
+          if (namedChildren.length >= 2) {
+            // Build field chain for all intermediate identifiers, return with base receiver
+            for (let i = 1; i < namedChildren.length; i++) {
+              const fieldName = namedChildren[i].text;
+              // Check if this identifier is followed by attribute_call (it's the last step)
+              // Those should not be field steps - they're the receiver of the method call
+              chain.unshift({ kind: 'field', name: fieldName });
+            }
+            return { chain, baseReceiverName: namedChildren[0].text || undefined };
+          }
+          return undefined;
+        }
+        // Pure field access (no method call)
         innerObject = current.childForFieldName?.('object') ?? current.childForFieldName?.('value') ?? null;
         propertyName = current.childForFieldName?.('attribute')?.text;
         // GDScript: attribute node has children in order: identifier, ., identifier (no named fields)

@@ -1182,6 +1182,7 @@ const KNOWN_SUB_TAGS: ReadonlySet<string> = new Set<string>([
   '@reference.arity',
   '@reference.parameter-types',
   '@reference.parameter-type-classes',
+  '@reference.chain',
   '@declaration.parameter-count',
   '@declaration.required-parameter-count',
   '@declaration.parameter-types',

@@ -12,7 +12,7 @@
  *     `unknown` (neutral signal).
  */
 
-import type { Callsite, Resolution, ScopeId } from '../types.js';
+import type { Callsite, MixedChainStep, Resolution, ScopeId } from '../types.js';
 import { lookupCore, type CoreLookupParams } from './lookup-core.js';
 import type { OwnerScopedContributor, RegistryContext } from './context.js';
 import { METHOD_KINDS } from './context.js';
@@ -30,6 +30,12 @@ export interface MethodLookupOptions {
   readonly explicitReceiver?: { readonly name: string };
   /** Optional per-owner contributor (Step 3). */
   readonly ownerScopedContributor?: OwnerScopedContributor;
+  /**
+   * Mixed receiver chain for compound receivers (e.g., `svc.getUser().address.save()`).
+   * Each step describes a property access or method call on the receiver chain.
+   * Used to resolve the final receiver type before method lookup.
+   */
+  readonly receiverMixedChain?: readonly MixedChainStep[];
 }
 
 export interface MethodRegistry {
@@ -46,6 +52,9 @@ export function buildMethodRegistry(ctx: RegistryContext): MethodRegistry {
         ...(options.callsite !== undefined ? { callsite: options.callsite } : {}),
         ...(options.explicitReceiver !== undefined
           ? { explicitReceiver: options.explicitReceiver }
+          : {}),
+        ...(options.receiverMixedChain !== undefined
+          ? { receiverMixedChain: options.receiverMixedChain }
           : {}),
       };
       return lookupCore(name, scope, params, ctx);
