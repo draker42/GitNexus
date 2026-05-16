@@ -50,6 +50,74 @@ import type { ResolutionOutcome, ResolutionOutcomeRecorder } from '../resolution
 import { logger } from '../../../logger.js';
 
 /**
+ * Resolve inheritance reference sites early and pre-emit their EXTENDS edges
+ * before MRO construction. This lets template-base captures contribute to the
+ * graph in time for `buildMro`, while `handledSites` prevents the generic
+ * reference-edge bridge from re-emitting the same sites later.
+ *
+ * @returns Site keys to seed the downstream handled-site skip set.
+ */
+function preEmitInheritanceEdges(
+  graph: KnowledgeGraph,
+  scopes: ReturnType<typeof finalizeScopeModel>,
+  nodeLookup: ReturnType<typeof buildGraphNodeLookup>,
+): Set<string> {
+  const handledSites = new Set<string>();
+  const seen = new Set<string>();
+  const existing = new Set<string>();
+  for (const rel of graph.iterRelationshipsByType('EXTENDS')) {
+    existing.add(`${rel.sourceId}->${rel.targetId}`);
+  }
+
+  for (const site of scopes.referenceSites) {
+    if (site.kind !== 'inherits') continue;
+    const scope = scopes.scopeTree.getScope(site.inScope);
+    const siteKey =
+      scope?.filePath !== undefined
+        ? `${scope.filePath}:${site.atRange.startLine}:${site.atRange.startCol}`
+        : undefined;
+    if (siteKey !== undefined) {
+      // Intentionally suppress every `inherits` site from the generic
+      // reference bridge, even when this pre-pass can't emit an EXTENDS
+      // edge. The shared bridge resolves the source via
+      // `resolveCallerGraphId`, which can degrade class-heritage sites into
+      // method-owned EXTENDS edges once methods exist on the class. This
+      // pre-pass is the authoritative inheritance emitter, so broad
+      // suppression keeps `buildMro` and the final graph class-owned.
+      handledSites.add(siteKey);
+    }
+
+    const targetDef = findClassBindingInScope(site.inScope, site.name, scopes);
+    if (targetDef === undefined) continue;
+
+    const callerClass = findEnclosingClassDef(site.inScope, scopes);
+    if (callerClass === undefined) continue;
+    const callerGraphId = resolveDefGraphId(callerClass.filePath, callerClass, nodeLookup);
+    const targetGraphId = resolveDefGraphId(targetDef.filePath, targetDef, nodeLookup);
+    if (callerGraphId === undefined || targetGraphId === undefined) continue;
+    const edgeKey = `${callerGraphId}->${targetGraphId}`;
+    if (existing.has(edgeKey)) continue;
+
+    if (
+      tryEmitEdge(
+        graph,
+        scopes,
+        nodeLookup,
+        site,
+        targetDef,
+        'scope-resolution: inherits',
+        seen,
+        0.85,
+      )
+    ) {
+      existing.add(edgeKey);
+    }
+  }
+
+  return handledSites;
+}
+
+/**
  * Generate synthetic SymbolDefinitions for GDScript built-in types.
  * These enable method resolution for calls like `Button.new()` and `Signal.connect()`.
  */
