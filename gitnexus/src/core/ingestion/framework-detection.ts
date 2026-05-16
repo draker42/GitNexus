@@ -658,12 +658,8 @@ export const FRAMEWORK_AST_PATTERNS = {
   riverpod: ['@riverpod', 'ref.watch', 'ref.read', 'AsyncNotifier', 'Notifier'],
 };
 
-interface AstFrameworkPatternConfig {
-  framework: string;
-  entryPointMultiplier: number;
-  reason: string;
-  patterns: string[];
-}
+// Use the imported type instead of redefining it
+// interface AstFrameworkPatternConfig is imported from './language-provider.js'
 
 export const AST_FRAMEWORK_PATTERNS_BY_LANGUAGE = {
   [SupportedLanguages.JavaScript]: [
@@ -909,7 +905,7 @@ const AST_PATTERNS_LOWERED: Record<
 > = Object.fromEntries(
   Object.entries(AST_FRAMEWORK_PATTERNS_BY_LANGUAGE).map(([lang, cfgs]) => [
     lang,
-    (provider.astFrameworkPatterns ?? []).map((cfg) => ({
+    (cfgs ?? []).map((cfg) => ({
       ...cfg,
       patterns: cfg.patterns.map((p) => p.toLowerCase()),
     })),
