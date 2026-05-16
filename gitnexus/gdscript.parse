@@ -1,0 +1,90 @@
+source: "extends Node2D\n\nsignal health_" [6 children]
+  extends_statement: "extends Node2D" [2 children]
+    extends: "extends"
+    type: "Node2D" [1 children]
+      identifier: "Node2D"
+  signal_statement: "signal health_changed(new_heal" [3 children]
+    signal: "signal"
+    name: "health_changed"
+    parameters: "(new_health)" [3 children]
+      (: "("
+      identifier: "new_health"
+      ): ")"
+  variable_statement: "@onready var health_bar = $Hea" [5 children]
+    annotations: "@onready" [1 children]
+      annotation: "@onready" [2 children]
+        @: "@"
+        identifier: "onready"
+    var: "var"
+    name: "health_bar"
+    =: "="
+    get_node: "$HealthBar" [1 children]
+      $: "$"
+  function_definition: "func _ready():\n    $Player.tak" [5 children]
+    func: "func"
+    name: "_ready"
+    parameters: "()" [2 children]
+      (: "("
+      ): ")"
+    :: ":"
+    body: "\n    $Player.take_damage(10)\n " [3 children]
+      expression_statement: "$Player.take_damage(10)" [1 children]
+        attribute: "$Player.take_damage(10)" [3 children]
+          get_node: "$Player" [1 children]
+            $: "$"
+          .: "."
+          attribute_call: "take_damage(10)" [2 children]
+            identifier: "take_damage"
+            arguments: "(10)" [3 children]
+              (: "("
+              integer: "10"
+              ): ")"
+      expression_statement: "%UniqueNode.value = 50" [1 children]
+        assignment: "%UniqueNode.value = 50" [3 children]
+          attribute: "%UniqueNode.value" [3 children]
+            get_node: "%UniqueNode" [1 children]
+              %: "%"
+            .: "."
+            identifier: "value"
+          =: "="
+          integer: "50"
+      expression_statement: "health_changed.connect(_on_hea" [1 children]
+        attribute: "health_changed.connect(_on_hea" [3 children]
+          identifier: "health_changed"
+          .: "."
+          attribute_call: "connect(_on_health_changed)" [2 children]
+            identifier: "connect"
+            arguments: "(_on_health_changed)" [3 children]
+              (: "("
+              identifier: "_on_health_changed"
+              ): ")"
+  function_definition: "func take_damage(amount):\n    " [5 children]
+    func: "func"
+    name: "take_damage"
+    parameters: "(amount)" [3 children]
+      (: "("
+      identifier: "amount"
+      ): ")"
+    :: ":"
+    body: "\n    pass" [1 children]
+      pass_statement: "pass" [1 children]
+        pass: "pass"
+  function_definition: "func _process(delta):\n    supe" [5 children]
+    func: "func"
+    name: "_process"
+    parameters: "(delta)" [3 children]
+      (: "("
+      identifier: "delta"
+      ): ")"
+    :: ":"
+    body: "\n    super._process(delta)" [1 children]
+      expression_statement: "super._process(delta)" [1 children]
+        attribute: "super._process(delta)" [3 children]
+          identifier: "super"
+          .: "."
+          attribute_call: "_process(delta)" [2 children]
+            identifier: "_process"
+            arguments: "(delta)" [3 children]
+              (: "("
+              identifier: "delta"
+              ): ")"

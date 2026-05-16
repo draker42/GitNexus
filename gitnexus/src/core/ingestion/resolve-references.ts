@@ -183,6 +183,7 @@ function lookupForSite(
       const opts: Parameters<MethodRegistry['lookup']>[2] = {
         ...(site.arity !== undefined ? { callsite: { arity: site.arity } } : {}),
         ...(site.explicitReceiver !== undefined ? { explicitReceiver: site.explicitReceiver } : {}),
+        ...(site.receiverMixedChain !== undefined ? { receiverMixedChain: site.receiverMixedChain } : {}),
       };
       return methodRegistry.lookup(site.name, site.inScope, opts);
     }

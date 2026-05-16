@@ -74,6 +74,7 @@ import type {
   Callsite,
   DefId,
   LookupParams,
+  MixedChainStep,
   Resolution,
   Scope,
   ScopeId,
@@ -91,6 +92,8 @@ export interface CoreLookupParams extends Omit<LookupParams, 'ownerScopedContrib
   readonly ownerScopedContributor: OwnerScopedContributor | null;
   /** Call-site description forwarded to `arityCompatibility`. Optional — for non-call lookups. */
   readonly callsite?: Callsite;
+  /** Mixed receiver chain for compound receivers (e.g., `svc.getUser().address.save()`). */
+  readonly receiverMixedChain?: readonly MixedChainStep[];
 }
 
 /**
@@ -286,18 +289,112 @@ function resolveReceiverOwner(
   // ready resolveTypeRef call (that module is separate), we do a direct
   // lookup and trust the caller to have populated the binding.
   if (params.explicitReceiver !== undefined) {
-    return lookupReceiverType(startScope, params.explicitReceiver.name, ctx);
+    const baseOwner = lookupReceiverType(startScope, params.explicitReceiver.name, ctx);
+    if (baseOwner === undefined) return undefined;
+
+    // If there's a mixed chain, resolve the final type by walking the chain
+    if (params.receiverMixedChain !== undefined && params.receiverMixedChain.length > 0) {
+      const finalType = walkMixedChain(baseOwner, params.receiverMixedChain, ctx);
+      return finalType;
+    }
+    return baseOwner;
   }
 
   // Implicit `self` / `this` — the scope's typeBindings should carry it.
   for (const implicitName of IMPLICIT_RECEIVERS) {
     const owner = lookupReceiverType(startScope, implicitName, ctx);
-    if (owner !== undefined) return owner;
+    if (owner !== undefined) {
+      // Handle mixed chain for implicit receivers as well
+      if (params.receiverMixedChain !== undefined && params.receiverMixedChain.length > 0) {
+        const finalType = walkMixedChain(owner, params.receiverMixedChain, ctx);
+        if (finalType !== undefined) return finalType;
+      }
+      return owner;
+    }
   }
   return undefined;
 }
 
 const IMPLICIT_RECEIVERS: readonly string[] = Object.freeze(['self', 'this']);
+
+/**
+ * Walk a mixed chain of field/call steps, threading the current type
+ * through each step and returning the final resolved type.
+ *
+ * For each step:
+ *   - 'field' step: look up a property/field on the current type and use its declaredType
+ *   - 'call' step: look up a method on the current type and use its returnType
+ *
+ * Returns `undefined` if any step cannot be resolved.
+ */
+function walkMixedChain(
+  startDefId: DefId,
+  chain: readonly MixedChainStep[],
+  ctx: RegistryContext,
+): DefId | undefined {
+  let currentDefId: DefId | undefined = startDefId;
+
+  for (const step of chain) {
+    if (currentDefId === undefined) {
+      return undefined;
+    }
+
+    const currentDef = ctx.defs.get(currentDefId);
+    if (currentDef === undefined) {
+      return undefined;
+    }
+
+    if (step.kind === 'field') {
+      // Look for a property/field on this type
+      const fieldDef = collectOwnedMembers(currentDefId, step.name, ctx);
+
+      if (fieldDef.length >= 1) {
+        // Use the field's declared type if available
+        const declaredType = fieldDef[0].declaredType;
+        if (declaredType !== undefined) {
+          const typeIds = ctx.qualifiedNames.get(declaredType);
+          if (typeIds.length === 1) {
+            currentDefId = typeIds[0];
+            continue;
+          }
+        }
+        // If no declared type, stay on the same type (dynamic)
+        continue;
+      }
+      // No field found - could be dynamic, try method resolution as fallback
+      const methodDef = collectOwnedMembers(currentDefId, step.name, ctx);
+      if (methodDef.length >= 1) {
+        const method = methodDef.find((d) => d.type === 'Method' || d.type === 'Function');
+        if (method !== undefined && method.returnType !== undefined) {
+          const returnTypeIds = ctx.qualifiedNames.get(method.returnType);
+          if (returnTypeIds.length === 1) {
+            currentDefId = returnTypeIds[0];
+            continue;
+          }
+        }
+      }
+      // Field not found - chain is broken, return undefined
+      return undefined;
+    } else {
+      // 'call' step - look for a method and use its return type
+      const methodDef = collectOwnedMembers(currentDefId, step.name, ctx);
+      const method = methodDef.find((d) => d.type === 'Method' || d.type === 'Function' || d.type === 'Constructor');
+      if (method === undefined) return undefined;
+
+      const returnType = method.returnType;
+      if (returnType === undefined) {
+        // No return type - assume returns the same type for fluent calls
+        continue;
+      }
+
+      const returnTypeIds = ctx.qualifiedNames.get(returnType);
+      if (returnTypeIds.length !== 1) return undefined;
+      currentDefId = returnTypeIds[0];
+    }
+  }
+
+  return currentDefId;
+}
 
 function lookupReceiverType(
   startScope: ScopeId,

@@ -138,6 +138,7 @@ function createGdscriptBuiltinDefs(): SymbolDefinition[] {
         qualifiedName: signal,
         filePath: '<godot-builtins>',
         ownerId: `__builtin:${owner}`,
+        declaredType: 'Signal', // Signal properties return Signal type for connect() calls
       });
     }
   }
@@ -377,6 +378,34 @@ export function runScopeResolution(
     methodDispatch: buildPopulatedMethodDispatch(mroByClassDefId, extendsOnlyMroByClassDefId),
   };
 
+  // Emit synthetic built-in definitions as graph nodes
+  // This ensures they exist when resolving references to them
+  // Must happen BEFORE resolveReferenceSites so the lookup can find them.
+  const nodeLookupWithSynthetic =
+    syntheticDefs !== undefined
+      ? (() => {
+          for (const def of syntheticDefs) {
+            // Only emit Method/Function nodes (not classes - they're already in the graph if used)
+            if (def.type === 'Method' || def.type === 'Function') {
+              const nodeId = `${def.type}:${def.filePath}:${def.qualifiedName}`;
+              // Check if node already exists
+              if (graph.getNode(nodeId) === undefined) {
+                graph.addNode({
+                  id: nodeId,
+                  label: def.type,
+                  properties: {
+                    name: def.qualifiedName,
+                    filePath: def.filePath,
+                  },
+                });
+              }
+            }
+          }
+          // Rebuild nodeLookup to include synthetic nodes
+          return buildGraphNodeLookup(graph);
+        })()
+      : nodeLookup;
+
   // Build the workspace resolution index ONCE — scope-valued lookups
   // (`classScopeByDefId`, `moduleScopeByFile`) that `SemanticModel`
   // cannot carry. Must run AFTER `populateOwners` (so owned defs are
@@ -451,6 +480,7 @@ export function runScopeResolution(
     indexes,
     parsedFiles,
     postHeritageNodeLookup,
+    nodeLookupWithSynthetic,
     handledSites,
     provider,
     workspaceIndex,
@@ -475,6 +505,7 @@ export function runScopeResolution(
     indexes,
     parsedFiles,
     postHeritageNodeLookup,
+    nodeLookupWithSynthetic,
     referenceIndex,
     handledSites,
     readonlyModel,
@@ -494,6 +525,7 @@ export function runScopeResolution(
     indexes,
     referenceIndex,
     postHeritageNodeLookup,
+    nodeLookupWithSynthetic,
     handledSites,
   );
   const importsEmitted = emitImportEdges(
