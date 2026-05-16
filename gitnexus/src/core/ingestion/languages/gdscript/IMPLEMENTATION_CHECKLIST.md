@@ -22,11 +22,14 @@
 - [x] **Super Call Resolution**: `@super.call` and `@super.method` captures with `super_call` interpretation.
 - [x] **Call Extractor**: Created `gdscriptCallConfig` and added `callExtractor` property to provider for CALLS edge generation.
 - [x] **Method Call Patterns**: Added `@call`/`@call.name` patterns for `attribute_call` and `base_call` nodes.
+- [x] **Built-in Type Resolution**: `createGdscriptBuiltinDefs()` synthesizes SymbolDefinitions for `Button`, `Label`, `Signal`, etc.
+- [x] **Mixed Chain Resolution**: `walkMixedChain` resolves compound receivers like `btn.pressed.connect()`.
+- [x] **CALLS Edge Emission**: Integration test `emits CALLS edges for method calls on built-in types` passes.
 
 ## 🧪 Testing & Robustness
 - [x] **Basic Runtime Verification**: `verify_gdscript_runtime.js` passes with 23 captures extracted from sample code.
+- [x] **Integration Test**: `test/integration/resolvers/gdscript.test.ts` passes (2/2 tests).
 - [ ] **Expand Test Suite**: Update `verify_gdscript_runtime.js` with:
   [ ]  - Inheritance chains.
   [ ]  - Resource loading (`preload`/`load`).
-  [ ]  - Signal-to-method connections.
   [ ]  - Node reference resolution (`$NodeName`, `%UniqueNode`).
