@@ -39,6 +39,33 @@ import {
  *  pathological recursion. */
 const COMPOUND_RECEIVER_MAX_DEPTH = 8;
 
+/**
+ * Built-in type property mappings for languages with rich standard libraries.
+ * Maps "ClassName.propertyName" → "returnTypeName" for synthetic type bindings.
+ */
+function getBuiltinPropertyType(className: string, propertyName: string): string | undefined {
+  // GDScript built-in signals (Button.pressed → Signal)
+  const signalMap: Record<string, string[]> = {
+    Button: ['pressed', 'button_down', 'button_up', 'toggled'],
+    Control: ['focus_entered', 'focus_exited', 'mouse_entered', 'mouse_exited', 'size_flags_changed'],
+    Node: ['ready', 'process', 'physics_process'],
+    LineEdit: ['text_changed', 'text_entered'],
+    TextEdit: ['text_changed'],
+    Timer: ['timeout'],
+  };
+  if (signalMap[className]?.includes(propertyName)) {
+    return 'Signal';
+  }
+  // GDScript built-in properties
+  const propMap: Record<string, Record<string, string>> = {
+    Label: { text: 'String' },
+    Button: { text: 'String' },
+    LineEdit: { text: 'String' },
+    TextEdit: { text: 'String' },
+  };
+  return propMap[className]?.[propertyName];
+}
+
 const MAP_TUPLE_SENTINEL_RE = /^__MAP_TUPLE_(\d+)__:(.+)$/;
 
 function parseMapTupleSentinel(text: string): { tupleIdx: number; rhs: string } | null {
@@ -375,6 +402,15 @@ export function resolveCompoundReceiverClass(
           break;
         }
         curId = curScope.parent;
+      }
+    }
+    // Fallback: check built-in type properties for synthetic types
+    // (e.g., Button.pressed → Signal for GDScript)
+    // This handles cases where the class is a synthetic built-in without an actual scope
+    if (memberType === undefined && currentClass.filePath === '<godot-builtins>') {
+      const builtinType = getBuiltinPropertyType(currentClass.qualifiedName, memberName);
+      if (builtinType !== undefined) {
+        memberType = { rawName: builtinType, declaredAtScope: currentClass.nodeId, source: 'constructor-inferred' };
       }
     }
     if (memberType === undefined) {

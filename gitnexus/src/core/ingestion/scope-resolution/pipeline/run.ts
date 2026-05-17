@@ -23,7 +23,8 @@
  * Plan: `docs/plans/2026-04-20-001-refactor-emit-pipeline-generalization-plan.md`.
  */
 
-import type { ParsedFile, RegistryProviders } from 'gitnexus-shared';
+import type { ParsedFile, RegistryProviders, SymbolDefinition } from 'gitnexus-shared';
+import { SupportedLanguages } from 'gitnexus-shared';
 import type { KnowledgeGraph } from '../../../graph/types.js';
 import { lookupOwnedMembersByOwner } from '../../model/owned-members-lookup.js';
 import type { MutableSemanticModel, SemanticModel } from '../../model/semantic-model.js';
@@ -49,71 +50,99 @@ import type { ResolutionOutcome, ResolutionOutcomeRecorder } from '../resolution
 import { logger } from '../../../logger.js';
 
 /**
- * Resolve inheritance reference sites early and pre-emit their EXTENDS edges
- * before MRO construction. This lets template-base captures contribute to the
- * graph in time for `buildMro`, while `handledSites` prevents the generic
- * reference-edge bridge from re-emitting the same sites later.
- *
- * @returns Site keys to seed the downstream handled-site skip set.
+ * Generate synthetic SymbolDefinitions for GDScript built-in types.
+ * These enable method resolution for calls like `Button.new()` and `Signal.connect()`.
  */
-function preEmitInheritanceEdges(
-  graph: KnowledgeGraph,
-  scopes: ReturnType<typeof finalizeScopeModel>,
-  nodeLookup: ReturnType<typeof buildGraphNodeLookup>,
-): Set<string> {
-  const handledSites = new Set<string>();
-  const seen = new Set<string>();
-  const existing = new Set<string>();
-  for (const rel of graph.iterRelationshipsByType('EXTENDS')) {
-    existing.add(`${rel.sourceId}->${rel.targetId}`);
+function createGdscriptBuiltinDefs(): SymbolDefinition[] {
+  // Import the types list from the builtins module
+  const classes = [
+    'Object', 'Node', 'Node2D', 'Node3D', 'Control', 'CanvasItem', 'Spatial',
+    'Button', 'Label', 'LineEdit', 'TextEdit', 'TextureRect', 'Panel',
+    'PanelContainer', 'HBoxContainer', 'VBoxContainer', 'GridContainer',
+    'CenterContainer', 'MarginContainer', 'ScrollContainer', 'ItemList',
+    'Tree', 'GraphEdit', 'FileDialog', 'AcceptDialog', 'ProgressBar',
+    'TextureProgressBar', 'Slider', 'SpinBox', 'CheckBox', 'OptionButton',
+    'Popup', 'PopupMenu', 'MenuBar', 'TabContainer', 'Tabs', 'RichTextLabel',
+    'Separator', 'TextureButton', 'ColorRect', 'Resource', 'PackedScene',
+    'Script', 'Sprite2D', 'Sprite3D', 'Texture', 'ImageTexture',
+    'AnimatedSprite2D', 'AnimatedSprite3D', 'AnimationPlayer', 'AnimationTree',
+    'CanvasModulate', 'AudioStreamPlayer', 'AudioStreamPlayer2D',
+    'AudioStreamPlayer3D', 'AudioListener2D', 'AudioListener3D', 'Timer',
+    'Vector2', 'Vector3', 'Vector4', 'Rect2', 'Transform2D', 'Transform3D',
+    'Plane', 'AABB', 'Quaternion', 'Color',
+  ];
+
+  const defs: SymbolDefinition[] = [];
+
+  // Add class definitions
+  for (const name of classes) {
+    defs.push({
+      nodeId: `__builtin:${name}`,
+      type: 'Class',
+      qualifiedName: name,
+      filePath: '<godot-builtins>',
+    });
   }
 
-  for (const site of scopes.referenceSites) {
-    if (site.kind !== 'inherits') continue;
-    const scope = scopes.scopeTree.getScope(site.inScope);
-    const siteKey =
-      scope?.filePath !== undefined
-        ? `${scope.filePath}:${site.atRange.startLine}:${site.atRange.startCol}`
-        : undefined;
-    if (siteKey !== undefined) {
-      // Intentionally suppress every `inherits` site from the generic
-      // reference bridge, even when this pre-pass can't emit an EXTENDS
-      // edge. The shared bridge resolves the source via
-      // `resolveCallerGraphId`, which can degrade class-heritage sites into
-      // method-owned EXTENDS edges once methods exist on the class. This
-      // pre-pass is the authoritative inheritance emitter, so broad
-      // suppression keeps `buildMro` and the final graph class-owned.
-      handledSites.add(siteKey);
-    }
+  // Add "new" static method to all class types (Button.new(), Label.new(), etc.)
+  for (const name of classes) {
+    defs.push({
+      nodeId: `__builtin:${name}.new`,
+      type: 'Method',
+      qualifiedName: 'new',
+      filePath: '<godot-builtins>',
+      ownerId: `__builtin:${name}`,
+    });
+  }
 
-    const targetDef = findClassBindingInScope(site.inScope, site.name, scopes);
-    if (targetDef === undefined) continue;
+  // Add Signal class with connect method (btn.pressed returns a Signal, connect() is called on it)
+  defs.push({
+    nodeId: '__builtin:Signal',
+    type: 'Class',
+    qualifiedName: 'Signal',
+    filePath: '<godot-builtins>',
+  });
 
-    const callerClass = findEnclosingClassDef(site.inScope, scopes);
-    if (callerClass === undefined) continue;
-    const callerGraphId = resolveDefGraphId(callerClass.filePath, callerClass, nodeLookup);
-    const targetGraphId = resolveDefGraphId(targetDef.filePath, targetDef, nodeLookup);
-    if (callerGraphId === undefined || targetGraphId === undefined) continue;
-    const edgeKey = `${callerGraphId}->${targetGraphId}`;
-    if (existing.has(edgeKey)) continue;
+  // Signal.connect() method
+  defs.push({
+    nodeId: '__builtin:Signal.connect',
+    type: 'Method',
+    qualifiedName: 'connect',
+    filePath: '<godot-builtins>',
+    ownerId: '__builtin:Signal',
+  });
 
-    if (
-      tryEmitEdge(
-        graph,
-        scopes,
-        nodeLookup,
-        site,
-        targetDef,
-        'scope-resolution: inherits',
-        seen,
-        0.85,
-      )
-    ) {
-      existing.add(edgeKey);
+  // Add text property for Label/Etc.  (obj.text = "..." )
+  const typesWithText = ['Label', 'LineEdit', 'TextEdit', 'Button'];
+  for (const name of typesWithText) {
+    defs.push({
+      nodeId: `__builtin:${name}.text`,
+      type: 'Property',
+      qualifiedName: 'text',
+      filePath: '<godot-builtins>',
+      ownerId: `__builtin:${name}`,
+    });
+  }
+
+  // Add signal properties on Button (pressed returns Signal) - needed for btn.pressed.connect()
+  const signalProps = [
+    { owner: 'Button', signals: ['pressed', 'button_down', 'button_up', 'toggled'] },
+    { owner: 'Control', signals: ['focus_entered', 'focus_exited', 'mouse_entered', 'mouse_exited', 'size_flags_changed'] },
+    { owner: 'Node', signals: ['ready', 'process', 'physics_process'] },
+  ];
+  for (const { owner, signals } of signalProps) {
+    for (const signal of signals) {
+      defs.push({
+        nodeId: `__builtin:${owner}.${signal}`,
+        type: 'Property',
+        qualifiedName: signal,
+        filePath: '<godot-builtins>',
+        ownerId: `__builtin:${owner}`,
+      });
     }
   }
 
-  return handledSites;
+  return defs;
 }
 
 export type ScopeResolutionSubPhase =
@@ -297,6 +326,13 @@ export function runScopeResolution(
   const nodeLookup = buildGraphNodeLookup(graph);
 
   const resolutionConfig = input.resolutionConfig;
+
+  // Inject synthetic built-in type definitions for GDScript
+  const syntheticDefs =
+    provider.language === SupportedLanguages.GDScript
+      ? createGdscriptBuiltinDefs()
+      : undefined;
+
   const finalized = finalizeScopeModel(parsedFiles, {
     hooks: {
       resolveImportTarget: (targetRaw, fromFile) =>
@@ -306,6 +342,7 @@ export function runScopeResolution(
       mergeBindings: (existing, incoming, scopeId) =>
         provider.mergeBindings(existing, incoming, scopeId),
     },
+    syntheticDefs,
   });
   const preEmittedInheritanceSites = preEmitInheritanceEdges(graph, finalized, nodeLookup);
   // Call-based heritage hook (e.g., Ruby include/extend/prepend) — emits

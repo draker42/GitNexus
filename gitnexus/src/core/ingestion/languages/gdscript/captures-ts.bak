@@ -64,7 +64,7 @@ export const GDSCRIPT_QUERIES = `
 (class_definition
   name: (name) @class_definition_name
 ;  body: (class_body) @class_definition_body
-  extends: (extends_statement) @heritage_class_definition) @class_defintion
+  extends: (extends_statement) @heritage_class_definition) @class_definition
 ;  [(annotations) @class_definition_annotations]
 
 (class_name_statement
@@ -129,7 +129,7 @@ export const GDSCRIPT_QUERIES = `
 
 (function_definition
   name: (name) @function_name
-  parameters: (parameters) @parameters)
+  parameters: (parameters) @parameters) @function_definition
 
 (get_body body: (body)) @body
 
@@ -246,6 +246,38 @@ export const GDSCRIPT_QUERIES = `
 (while_statement
   condition: (_expression) @while_condition)
 
+;; --- Import/Dependency queries (preload/load) ---
+;; preload("res://path/to/script.gd") and load("res://path/to/resource.tres)
+(base_call
+  (identifier) @import.func_name
+  (#match? @import.func_name "^(preload|load)$")
+  arguments: (arguments
+    (string) @import.source)) @import.statement
+
+;; --- Signal connection tracking (.connect()) ---
+;; health_changed.connect(_on_health_changed)
+(attribute
+  (identifier) @signal.name
+  .
+  (attribute_call
+    (identifier) @signal.connect
+    (#eq? @signal.connect "connect")
+    arguments: (arguments
+      (identifier) @signal.callable))) @signal.connection
+
+;; --- Node references ($Player, %UniqueNode) ---
+;; $Player.take_damage() or %UniqueNode.value = 50
+(get_node) @node.reference
+
+;; --- Super calls (super._process(delta)) ---
+;; identifier "super" followed by method call
+(attribute
+  (identifier) @super.keyword
+  (#eq? @super.keyword "super")
+  .
+  (attribute_call
+    (identifier) @super.method)) @super.call
+
 (float)
 
 (integer)
@@ -256,3 +288,4 @@ export const GDSCRIPT_QUERIES = `
 
 (null)
 `;
+

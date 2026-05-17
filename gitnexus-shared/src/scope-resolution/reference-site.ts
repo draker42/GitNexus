@@ -22,7 +22,7 @@
  */
 
 import type { ParameterTypeClass } from './symbol-definition.js';
-import type { Range, ScopeId } from './types.js';
+import type { MixedChainStep, Range, ScopeId } from './types.js';
 
 /**
  * What kind of usage this reference represents — the graph-edge kind
@@ -87,4 +87,10 @@ export interface ReferenceSite {
    * for existing overload narrowing and conversion-rank logic.
    */
   readonly argumentTypeClasses?: readonly ParameterTypeClass[];
+  /**
+   * Mixed receiver chain for compound receivers (e.g., `svc.getUser().address.save()`).
+   * Each step describes a property access or method call on the receiver chain.
+   * Populated when `callForm === 'member'` and the receiver is a complex expression.
+   */
+  readonly receiverMixedChain?: readonly MixedChainStep[];
 }

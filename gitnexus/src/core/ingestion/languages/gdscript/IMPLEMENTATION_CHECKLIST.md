@@ -15,13 +15,13 @@
     - Uses `findProjectRoot` utility to locate project root (where `project.godot` resides)
 - [ ] **Autoload Integration**: Implement parser for `project.godot` to identify `[autoload]` entries.
 
-## 🚀 Next Up: Phase 3 (Intelligence)
-- [ ] **Signal Tracking**: Implement logic in `emitScopeCaptures` to detect `.connect()` calls and link signals to callables.
-- [ ] **Node Reference Resolution**: Add `typeConfig` logic to recognize `$NodeName` and `%UniqueNode` patterns.
-- [ ] **Inheritance Resolution**: Implement `super` keyword detection to trace method calls up the hierarchy.
-- [ ] **Global Class Registry**: Register all `class_name` declarations in a workspace-wide registry.
-- [ ] **Engine Callbacks**: Identify engine virtual methods (`_ready`, `_process`, `_physics_process`).
-- [ ] **Static Access**: Class-based static method calls (`ClassName.static_method()`).
+## ✅ Completed: Phase 3/3 (Call & Connection Resolution)
+- [x] **Signal Tracking**: Tree-sitter query captures `.connect()` calls with `@signal.connection`, `@signal.name`, `@signal.connect`, and `@signal.callable`.
+- [x] **Signal Connection Interpretation**: `interpretImport` handles `signal_connection` kind to link signals to callables.
+- [x] **Node Reference Resolution**: `@node.reference` capture for `$NodeName` and `%UniqueNode` patterns.
+- [x] **Super Call Resolution**: `@super.call` and `@super.method` captures with `super_call` interpretation.
+- [x] **Call Extractor**: Created `gdscriptCallConfig` and added `callExtractor` property to provider for CALLS edge generation.
+- [x] **Method Call Patterns**: Added `@call`/`@call.name` patterns for `attribute_call` and `base_call` nodes.
 
 ## 🧪 Testing & Robustness
 - [x] **Basic Runtime Verification**: `verify_gdscript_runtime.js` passes with 23 captures extracted from sample code.

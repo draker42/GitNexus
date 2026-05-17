@@ -72,6 +72,12 @@ export interface FinalizeOrchestratorOptions {
    * per-language resolvers.
    */
   readonly workspaceIndex?: WorkspaceIndex;
+  /**
+   * Optional synthetic SymbolDefinitions to inject into indexes.
+   * Used by language-specific hooks that need to register built-in types
+   * or other synthetic definitions that don't exist in user code.
+   */
+  readonly syntheticDefs?: readonly SymbolDefinition[];
 }
 
 /**
@@ -112,6 +118,12 @@ export function finalizeScopeModel(
     for (const s of file.scopes) allScopes.push(s);
     for (const d of file.localDefs) allDefs.push(d);
     moduleEntries.push({ filePath: file.filePath, moduleScopeId: file.moduleScope });
+  }
+
+  // Include synthetic definitions (e.g., GDScript built-in Godot types)
+  // in the index build
+  if (options.syntheticDefs) {
+    for (const def of options.syntheticDefs) allDefs.push(def);
   }
 
   const scopeTree = buildScopeTree(allScopes);

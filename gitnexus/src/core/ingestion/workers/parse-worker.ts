@@ -50,6 +50,10 @@ let Kotlin: TreeSitterLanguage | null = null;
 try {
   Kotlin = _require('tree-sitter-kotlin');
 } catch {}
+
+// tree-sitter-gdscript is a required dependency
+import GDScript from 'tree-sitter-gdscript';
+
 import { getLanguageFromFilename } from 'gitnexus-shared';
 import {
   FUNCTION_NODE_TYPES,
@@ -351,6 +355,7 @@ const languageMap: Record<string, TreeSitterLanguage> = {
   [SupportedLanguages.PHP]: PHP.php_only,
   [SupportedLanguages.Ruby]: Ruby,
   [SupportedLanguages.Vue]: TypeScript.typescript,
+  [SupportedLanguages.GDScript]: GDScript,
   ...(Dart ? { [SupportedLanguages.Dart]: Dart } : {}),
   ...(Swift ? { [SupportedLanguages.Swift]: Swift } : {}),
 };

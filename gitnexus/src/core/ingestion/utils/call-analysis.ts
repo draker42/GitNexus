@@ -71,6 +71,10 @@ const MEMBER_ACCESS_NODE_TYPES = new Set([
   'unconditional_assignable_selector', // Dart: obj.method() — nameNode inside selector > unconditional_assignable_selector
 ]);
 
+// GDScript uses `attribute_call` for method calls like `obj.method()`.
+// The structure is: attribute(identifier:obj, attribute_call(identifier:method, ...))
+// We need to check if the grandparent is an `attribute` node to detect member calls.
+
 /**
  * Call node types that are inherently constructor invocations.
  * Only includes patterns that the tree-sitter queries already capture as @call.
@@ -134,13 +138,20 @@ export const inferCallForm = (callNode: SyntaxNode, nameNode: SyntaxNode): CallF
     return 'member';
   }
 
-  // 5. Scoped calls (Rust Foo::new(), C++ ns::func()): treat as free
+  // 6. Scoped calls (Rust Foo::new(), C++ ns::func()): treat as free
   //    The receiver is a type, not an instance — handled differently in Phase 3
   if (nameParent && SCOPED_CALL_NODE_TYPES.has(nameParent.type)) {
     return 'free';
   }
 
-  // 6. Default: if nameNode is a direct child of callNode, it's a free call
+  // 7. GDScript: attribute_call inside attribute node is a member call
+  //    For `obj.method()`, the AST is: attribute(identifier, attribute_call(identifier, ...))
+  //    callNode = attribute_call, nameNode.parent = attribute_call, nameNode.parent.parent = attribute
+  if (callNode.type === 'attribute_call' && callNode.parent?.type === 'attribute') {
+    return 'member';
+  }
+
+  // 8. Default: if nameNode is a direct child of callNode, it's a free call
   if (nameNode.parent === callNode || nameParent?.parent === callNode) {
     return 'free';
   }
@@ -251,6 +262,20 @@ export const extractReceiverName = (nameNode: SyntaxNode): string | undefined =>
     }
   }
 
+  // GDScript: attribute_call inside attribute node — receiver is first child of attribute
+  // For `btn.get_children()`, the AST is: attribute(identifier:btn, attribute_call(identifier:method, ...))
+  // nameNode = identifier, nameNode.parent = attribute_call, nameNode.parent.parent = attribute
+  if (!receiver && nameNode.parent?.type === 'attribute_call' && nameNode.parent.parent?.type === 'attribute') {
+    const attrNode = nameNode.parent.parent;
+    // First named child of attribute is the receiver (e.g., "btn")
+    for (const child of attrNode.children) {
+      if (child.isNamed && child.type !== 'attribute_call') {
+        receiver = child;
+        break;
+      }
+    }
+  }
+
   if (!receiver) return undefined;
 
   // Only capture simple identifiers — refuse complex expressions
@@ -341,6 +366,20 @@ export const extractReceiverNode = (nameNode: SyntaxNode): SyntaxNode | undefine
           receiver = child;
           break;
         }
+      }
+    }
+  }
+
+  // GDScript: attribute_call inside attribute node — receiver is first child of attribute
+  // For `btn.get_children()`, the AST is: attribute(identifier:btn, attribute_call(identifier:method, ...))
+  // nameNode = identifier, parent = attribute_call, callNode = attribute
+  if (!receiver && parent.type === 'attribute_call' && callNode.type === 'attribute') {
+    const attrNode = callNode;
+    // First named child of attribute is the receiver (e.g., "btn")
+    for (const child of attrNode.children) {
+      if (child.isNamed && child.type !== 'attribute_call') {
+        receiver = child;
+        break;
       }
     }
   }
@@ -559,8 +598,20 @@ export function extractMixedChain(
           }
         }
       } else if (current.type === 'attribute') {
-        innerObject = current.childForFieldName?.('object') ?? null;
+        innerObject = current.childForFieldName?.('object') ?? current.childForFieldName?.('value') ?? null;
         propertyName = current.childForFieldName?.('attribute')?.text;
+        // GDScript: attribute node has children in order: identifier, ., identifier (no named fields)
+        // Fall back to positional extraction when field-based fails
+        if (!innerObject || !propertyName) {
+          const namedChildren: SyntaxNode[] = [];
+          for (const child of current.children ?? []) {
+            if (child.isNamed) namedChildren.push(child);
+          }
+          if (namedChildren.length >= 2) {
+            innerObject = namedChildren[0];
+            propertyName = namedChildren[1].text;
+          }
+        }
       } else {
         innerObject =
           current.childForFieldName?.('object') ??
