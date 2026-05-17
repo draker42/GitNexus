@@ -22,16 +22,11 @@ describe('GDScript built-in type call resolution', () => {
   }, 60000);
 
   it('indexes the Game class', () => {
-    const classes = getNodesByLabel(result, 'Class');
-    console.log('All Class nodes:', classes);
-    console.log('All Function nodes:', getNodesByLabel(result, 'Function'));
-    console.log('All Method nodes:', getNodesByLabel(result, 'Method'));
-    expect(classes).toEqual(expect.arrayContaining(['Game']));
+    expect(getNodesByLabel(result, 'Class')).toEqual(expect.arrayContaining(['Game']));
   });
 
   it('emits CALLS edges for method calls on built-in types', () => {
     const calls = getRelationships(result, 'CALLS');
-    console.log('All CALLS edges:', calls.map((c) => `${c.source} -> ${c.target} (${c.rel.reason})`));
     
     // At minimum we should have a call to connect
     const connectCalls = calls.filter((c) => c.target === 'connect');
