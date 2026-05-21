@@ -30,6 +30,7 @@ import { generateId } from '../../../../lib/utils.js';
 import { lookupOwnedMembersByOwner } from '../../model/owned-members-lookup.js';
 import type { MutableSemanticModel, SemanticModel } from '../../model/semantic-model.js';
 import { reconcileOwnership, validateOwnershipParity } from './reconcile-ownership.js';
+import { simpleQualifiedName } from '../graph-bridge/ids.js';
 import { validateBindingsImmutability } from './validate-bindings-immutability.js';
 import { extractParsedFile } from '../../scope-extractor-bridge.js';
 import { finalizeScopeModel } from '../../finalize-orchestrator.js';
@@ -85,6 +86,23 @@ import { TransitionalScopeTree } from '../../../../storage/scope-index-store.js'
 import { forceGc } from '../../../../storage/parsedfile-store.js';
 
 import { logger } from '../../../logger.js';
+
+/** Nested type kinds registered via TypeRegistry.registerByOwner (owner-keyed). */
+const NESTED_TYPE_KINDS = new Set<string>([
+  'Class',
+  'Interface',
+  'Enum',
+  'Struct',
+  'Union',
+  'Trait',
+  'TypeAlias',
+  'Typedef',
+  'Record',
+  'Delegate',
+  'Annotation',
+  'Template',
+  'Namespace',
+]);
 
 /**
  * Resolve inheritance reference sites early and pre-emit their EXTENDS edges
@@ -686,6 +704,13 @@ export function runScopeResolution(
   );
   provider.populateWorkspaceOwners?.(parsedFiles, { fileContents: getFileContents() });
 
+  // Inject synthetic built-in type definitions for GDScript
+  // (must be declared before reconcileOwnership so they can be registered)
+  let syntheticDefs: SymbolDefinition[] | undefined;
+  if (provider.language === SupportedLanguages.GDScript) {
+    syntheticDefs = createGdscriptBuiltinDefs();
+  }
+
   // Reconcile scope-resolution's ownership view into the SemanticModel.
   // See `reconcile-ownership.ts` for the full rationale (Contract
   // Invariant I9). Debug-mode validator runs immediately after to
@@ -697,6 +722,31 @@ export function runScopeResolution(
   // (narrowed to `SemanticModel`) so accidental writes would surface
   // as type errors.
   reconcileOwnership(parsedFiles, input.model);
+
+  // Register synthetic definitions in SemanticModel so owned-members lookup works
+  // (for GDScript built-ins like Button, Signal, etc.)
+  if (syntheticDefs !== undefined) {
+    for (const def of syntheticDefs) {
+      if (def.ownerId !== undefined) {
+        const simple = simpleQualifiedName(def);
+        if (simple !== undefined) {
+          if (def.type === 'Method' || def.type === 'Function' || def.type === 'Constructor') {
+            (input.model as MutableSemanticModel).methods.register(def.ownerId, simple, def);
+          } else if (
+            def.type === 'Property' ||
+            def.type === 'Variable' ||
+            def.type === 'Const' ||
+            def.type === 'Static'
+          ) {
+            (input.model as MutableSemanticModel).fields.register(def.ownerId, simple, def);
+          } else if (NESTED_TYPE_KINDS.has(def.type)) {
+            (input.model as MutableSemanticModel).types.registerByOwner(def.ownerId, simple, def);
+          }
+        }
+      }
+    }
+  }
+
   validateOwnershipParity(parsedFiles, input.model, onWarn);
   const readonlyModel: SemanticModel = input.model;
 
@@ -724,12 +774,6 @@ export function runScopeResolution(
   logHeapProbe('sr-post-nodeLookup', `lang=${provider.language}`);
 
   const resolutionConfig = input.resolutionConfig;
-
-  // Inject synthetic built-in type definitions for GDScript
-  const syntheticDefs =
-    provider.language === SupportedLanguages.GDScript
-      ? createGdscriptBuiltinDefs()
-      : undefined;
 
   const finalized = finalizeScopeModel(parsedFiles, {
     hooks: {
