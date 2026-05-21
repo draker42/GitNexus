@@ -1,0 +1,5 @@
+[application]
+
+[autoload]
+PlayerData="res://player_data.gd"
+GameState="res://game_state.gd"

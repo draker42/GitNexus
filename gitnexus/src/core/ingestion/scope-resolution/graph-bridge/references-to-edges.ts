@@ -40,6 +40,7 @@ export function emitReferencesViaLookup(
   scopes: ScopeResolutionIndexes,
   referenceIndex: { readonly bySourceScope: ReadonlyMap<ScopeId, readonly Reference[]> },
   nodeLookup: GraphNodeLookup,
+  nodeLookupWithSynthetic: GraphNodeLookup,
   skipSites?: ReferenceSiteSkipSet,
   /** Resolved-callee-id capture sink (#2227 U2). Threaded in only under
    *  `--pdg`; `undefined` ⇒ zero overhead, byte-identity (R4). Captured at the
@@ -73,7 +74,7 @@ export function emitReferencesViaLookup(
         skipped++;
         continue;
       }
-      const targetGraphId = resolveDefGraphId(targetDef.filePath, targetDef, nodeLookup);
+      const targetGraphId = resolveDefGraphId(targetDef.filePath, targetDef, nodeLookupWithSynthetic);
       if (targetGraphId === undefined) {
         skipped++;
         continue;

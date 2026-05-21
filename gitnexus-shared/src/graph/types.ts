@@ -47,7 +47,8 @@ export type NodeLabel =
   | 'Tool'
   // Taint/PDG substrate (issue #2080). Intra-procedural control-flow node.
   // Emitted by no phase yet — M1 (#2081) populates these behind an opt-in.
-  | 'BasicBlock';
+  | 'BasicBlock'
+  | 'Symbol';
 
 export type NodeProperties = {
   name: string;

@@ -257,17 +257,43 @@ function partitionByTopic(matches: readonly CaptureMatch[]): Partitioned {
 
 type Topic = 'scope' | 'declaration' | 'import' | 'type-binding' | 'reference' | 'unknown';
 
+/**
+ * Determine the topic of a match by finding the anchor capture (broadest
+ * non-sub-tag capture) and deriving the topic from its prefix.
+ *
+ * This ensures consistency with `anchorCaptureFor` used in each pass.
+ * Previously, this function returned the topic based on the first key
+ * in Object.keys() order, which could misclassify matches when a sub-tag
+ * (e.g., @declaration.name) appeared before the anchor (e.g., @import.statement).
+ */
 function topicOf(match: CaptureMatch): Topic {
-  // The anchor is the capture whose name uses one of the known topic
-  // prefixes. For multi-capture matches, ALL captures share the topic;
-  // we pick the first matching key for efficiency.
+  // Find the anchor capture: the broadest non-sub-tag capture
+  // This matches the logic in anchorCaptureFor
+  let bestSpan = -1;
+  let bestName: string | null = null;
+
   for (const name of Object.keys(match)) {
-    if (name.startsWith('@scope.')) return 'scope';
-    if (name.startsWith('@declaration.')) return 'declaration';
-    if (name.startsWith('@import.')) return 'import';
-    if (name.startsWith('@type-binding.')) return 'type-binding';
-    if (name.startsWith('@reference.')) return 'reference';
+    // Skip sub-tags - they are never anchors
+    if (KNOWN_SUB_TAGS.has(name)) continue;
+
+    const cap = match[name]!;
+    const span =
+      (cap.range.endLine - cap.range.startLine) * 1_000_000 +
+      (cap.range.endCol - cap.range.startCol);
+    if (span > bestSpan) {
+      bestSpan = span;
+      bestName = name;
+    }
   }
+
+  if (!bestName) return 'unknown';
+
+  // Derive topic from the anchor's prefix
+  if (bestName.startsWith('@scope.')) return 'scope';
+  if (bestName.startsWith('@declaration.')) return 'declaration';
+  if (bestName.startsWith('@import.')) return 'import';
+  if (bestName.startsWith('@type-binding.')) return 'type-binding';
+  if (bestName.startsWith('@reference.')) return 'reference';
   return 'unknown';
 }
 
@@ -757,6 +783,8 @@ function normalizeNodeLabel(kindStr: string): SymbolDefinition['type'] | undefin
       return 'Namespace';
     case 'macro':
       return 'Macro';
+    case 'symbol':
+      return 'Symbol';
     default:
       return undefined;
   }
@@ -1020,12 +1048,12 @@ function pass5CollectReferences(
         ? classifyCallFormForMatch(match, anchor.name, provider, scopeTree, inScopeId)
         : undefined;
     const explicitReceiver = extractExplicitReceiver(match);
+    const receiverMixedChain = extractReceiverMixedChain(match);
     const arity = extractArity(match);
     const argumentTypes = extractArgumentTypes(match);
     const argumentTypeClasses = parseJsonParameterTypeClassesCapture(
       match['@reference.parameter-type-classes'],
     );
-    const receiverMixedChain = extractReceiverMixedChain(match);
 
     const site: ReferenceSite = {
       name: nameCap.text,
@@ -1037,6 +1065,7 @@ function pass5CollectReferences(
         : {}),
       ...(callForm !== undefined ? { callForm } : {}),
       ...(explicitReceiver !== undefined ? { explicitReceiver } : {}),
+      ...(receiverMixedChain !== undefined ? { receiverMixedChain } : {}),
       ...(arity !== undefined ? { arity } : {}),
       ...(argumentTypes !== undefined ? { argumentTypes } : {}),
       ...(argumentTypeClasses !== undefined ? { argumentTypeClasses } : {}),
@@ -1179,6 +1208,7 @@ const KNOWN_SUB_TAGS: ReadonlySet<string> = new Set<string>([
   '@reference.qualified-name',
   '@reference.receiver',
   '@reference.operator',
+  '@reference.chain',
   '@reference.arity',
   '@reference.parameter-types',
   '@reference.parameter-type-classes',

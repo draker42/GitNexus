@@ -39,6 +39,7 @@ export const NODE_COLORS: Record<NodeLabel, string> = {
   Route: '#f43f5e', // Rose - like Process
   Tool: '#a855f7', // Purple - like Project
   BasicBlock: '#475569', // Slate darker - control-flow node (muted, taint/PDG substrate)
+  Symbol: '#10b981', // Emerald - like Function
 };
 
 // Node sizes by type - clear visual hierarchy with dramatic size differences
@@ -81,6 +82,7 @@ export const NODE_SIZES: Record<NodeLabel, number> = {
   Route: 5, // Like Enum
   Tool: 5, // Like Enum
   BasicBlock: 2, // Tiny - control-flow node (taint/PDG substrate)
+  Symbol: 4, // Like Function
 };
 
 // Community color palette for cluster-based coloring
