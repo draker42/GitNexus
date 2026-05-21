@@ -165,6 +165,7 @@ describe('primaryLanguages', () => {
     process.env['REGISTRY_PRIMARY_TYPESCRIPT'] = 'false';
     process.env['REGISTRY_PRIMARY_GO'] = 'false';
     process.env['REGISTRY_PRIMARY_GDSCRIPT'] = 'false';
+    process.env['REGISTRY_PRIMARY_JAVASCRIPT'] = 'false';
     process.env['REGISTRY_PRIMARY_C'] = 'false';
     process.env['REGISTRY_PRIMARY_CPP'] = 'false';
     process.env['REGISTRY_PRIMARY_PHP'] = 'false';
