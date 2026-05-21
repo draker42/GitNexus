@@ -1004,6 +1004,7 @@ function pass5CollectReferences(
         ? classifyCallFormForMatch(match, anchor.name, provider, scopeTree, inScopeId)
         : undefined;
     const explicitReceiver = extractExplicitReceiver(match);
+    const receiverMixedChain = extractReceiverMixedChain(match);
     const arity = extractArity(match);
     const argumentTypes = extractArgumentTypes(match);
     const argumentTypeClasses = parseJsonParameterTypeClassesCapture(
@@ -1018,6 +1019,7 @@ function pass5CollectReferences(
       kind,
       ...(callForm !== undefined ? { callForm } : {}),
       ...(explicitReceiver !== undefined ? { explicitReceiver } : {}),
+      ...(receiverMixedChain !== undefined ? { receiverMixedChain } : {}),
       ...(arity !== undefined ? { arity } : {}),
       ...(argumentTypes !== undefined ? { argumentTypes } : {}),
       ...(argumentTypeClasses !== undefined ? { argumentTypeClasses } : {}),
@@ -1157,6 +1159,7 @@ const KNOWN_SUB_TAGS: ReadonlySet<string> = new Set<string>([
   '@reference.name',
   '@reference.receiver',
   '@reference.operator',
+  '@reference.chain',
   '@reference.arity',
   '@reference.parameter-types',
   '@reference.parameter-type-classes',

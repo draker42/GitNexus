@@ -91,6 +91,7 @@ export interface ReferenceSite {
    * Mixed receiver chain for compound receivers (e.g., `svc.getUser().address.save()`).
    * Each step describes a property access or method call on the receiver chain.
    * Populated when `callForm === 'member'` and the receiver is a complex expression.
+   * Used by GDScript to resolve signal connections.
    */
   readonly receiverMixedChain?: readonly MixedChainStep[];
 }
