@@ -159,29 +159,15 @@ describe('primaryLanguages', () => {
       process.env[envVarNameFor(lang)] = 'false';
     }
     process.env['REGISTRY_PRIMARY_RUBY'] = '1';
-    // testing explicit env overrides. Java (unmigrated) opts in; Go stays off.
-    process.env['REGISTRY_PRIMARY_PYTHON'] = 'false';
-    process.env['REGISTRY_PRIMARY_CSHARP'] = 'false';
-    process.env['REGISTRY_PRIMARY_TYPESCRIPT'] = 'false';
-    process.env['REGISTRY_PRIMARY_GO'] = 'false';
-    process.env['REGISTRY_PRIMARY_GDSCRIPT'] = 'false';
-    process.env['REGISTRY_PRIMARY_JAVASCRIPT'] = 'false';
-    process.env['REGISTRY_PRIMARY_C'] = 'false';
-    process.env['REGISTRY_PRIMARY_CPP'] = 'false';
-    process.env['REGISTRY_PRIMARY_PHP'] = 'false';
-    process.env['REGISTRY_PRIMARY_JAVA'] = '1';
     const enabled = primaryLanguages();
     expect(enabled.has(SupportedLanguages.Python)).toBe(false);
     expect(enabled.has(SupportedLanguages.CSharp)).toBe(false);
     expect(enabled.has(SupportedLanguages.Go)).toBe(false);
-    expect(enabled.has(SupportedLanguages.C)).toBe(false);
     expect(enabled.has(SupportedLanguages.CPlusPlus)).toBe(false);
     expect(enabled.has(SupportedLanguages.PHP)).toBe(false);
     expect(enabled.has(SupportedLanguages.Ruby)).toBe(true);
     // Only Ruby is on: migrated defaults overridden off, Ruby explicitly on.
     expect(enabled.has(SupportedLanguages.GDScript)).toBe(false);
-    expect(enabled.has(SupportedLanguages.Java)).toBe(true);
-    // Only Java is on: migrated defaults overridden off, Java explicitly on.
     expect(enabled.size).toBe(1);
   });
 

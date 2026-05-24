@@ -1010,7 +1010,6 @@ function pass5CollectReferences(
     const argumentTypeClasses = parseJsonParameterTypeClassesCapture(
       match['@reference.parameter-type-classes'],
     );
-    const receiverMixedChain = extractReceiverMixedChain(match);
 
     const site: ReferenceSite = {
       name: nameCap.text,
