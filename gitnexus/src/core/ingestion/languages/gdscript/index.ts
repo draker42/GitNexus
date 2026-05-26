@@ -1,6 +1,7 @@
 import Parser from 'tree-sitter';
 import gdscript from 'tree-sitter-gdscript';
-import { GDSCRIPT_QUERIES } from '../../tree-sitter-queries.js';
+import godotResource from 'tree-sitter-godot-resource';
+import { GDSCRIPT_QUERIES, GODOT_RESOURCE_QUERIES } from '../../tree-sitter-queries.js';
 import { defineLanguage,
         type LanguageProvider,
         type ImportSemantics} from '../../language-provider.js';
@@ -48,6 +49,16 @@ const getGDScriptParser = (): Parser => {
   return gdscriptParser;
 };
 
+/** Lazy singleton parser for Godot resource (project.godot) – reused across files. */
+let godotResourceParser: Parser | null = null;
+const getGodotResourceParser = (): Parser => {
+  if (godotResourceParser === null) {
+    godotResourceParser = new Parser();
+    godotResourceParser.setLanguage(godotResource);
+  }
+  return godotResourceParser;
+};
+
 /** Lazy singleton query for GDScript scope captures. */
 let gdscriptScopeQuery: Parser.Query | null = null;
 const getGDScriptScopeQuery = (): Parser.Query => {
@@ -57,10 +68,84 @@ const getGDScriptScopeQuery = (): Parser.Query => {
   return gdscriptScopeQuery;
 };
 
+/** Lazy singleton query for Godot resource (project.godot) captures. */
+let godotResourceQuery: Parser.Query | null = null;
+const getGodotResourceQuery = (): Parser.Query => {
+  if (godotResourceQuery === null) {
+    godotResourceQuery = new Parser.Query(godotResource, GODOT_RESOURCE_QUERIES);
+  }
+  return godotResourceQuery;
+};
+
+/**
+ * Extract autoload entries from project.godot files.
+ * Creates Symbol nodes for each autoload entry so they resolve globally.
+ */
+function emitGodotResourceCaptures(
+  sourceText: string,
+  filePath: string,
+): CaptureMatch[] {
+  const parser = getGodotResourceParser();
+  const query = getGodotResourceQuery();
+  
+  let tree: Parser.Tree;
+  try {
+    tree = parser.parse(sourceText);
+  } catch {
+    return [];
+  }
+
+  const rootNode = tree.rootNode;
+  const matches = query.matches(rootNode);
+  
+  // Calculate file range for module scope
+  const lines = sourceText.split('\n');
+  const lastLine = lines.length;
+  const lastCol = lines[lastLine - 1]?.length ?? 0;
+  
+  const out: CaptureMatch[] = [];
+
+  for (const match of matches) {
+    const grouped: Record<string, Capture> = {};
+    for (const c of match.captures) {
+      const tag = '@' + c.name;
+      grouped[tag] = {
+        name: tag,
+        range: {
+          startLine: c.node.startPosition.row + 1,
+          startCol: c.node.startPosition.column,
+          endLine: c.node.endPosition.row + 1,
+          endCol: c.node.endPosition.column,
+        },
+        text: c.node.text,
+      };
+    }
+    if (Object.keys(grouped).length > 0) {
+      out.push(grouped as CaptureMatch);
+    }
+  }
+
+  // Emit a module scope so the scope extractor has a valid scope tree
+  out.push({
+    '@scope.module': {
+      name: '@scope.module',
+      range: {
+        startLine: 1,
+        startCol: 0,
+        endLine: lastLine,
+        endCol: lastCol,
+      },
+      text: 'project.godot',
+    },
+  });
+
+  return out;
+}
+
 // 3. The Provider Definition
 export const gdscriptProvider: LanguageProvider = defineLanguage({
   id: SupportedLanguages.GDScript,
-  extensions: ['.gd'],
+  extensions: ['.gd', '.godot'], // .godot for project.godot autoload extraction
   importSemantics: 'wildcard-leaf' as ImportSemantics,
   heritageDefaultEdge: 'EXTENDS',
   mroStrategy: 'first-wins' as MroStrategy,
@@ -88,8 +173,14 @@ export const gdscriptProvider: LanguageProvider = defineLanguage({
    * For GDScript, we also synthesize a file-level Class scope when `class_name`
    * is present, since GDScript's class_name_statement only spans one line but
    * the file body is semantically the class body.
+   * For project.godot files, we extract autoload entries from the [autoload] section.
    */
   emitScopeCaptures: (sourceText, filePath, cachedTree) => {
+    // Handle project.godot files specially
+    if (filePath.endsWith('project.godot')) {
+      return emitGodotResourceCaptures(sourceText, filePath);
+    }
+
     const parser = getGDScriptParser();
     const query = getGDScriptScopeQuery();
 
@@ -253,15 +344,6 @@ export const gdscriptProvider: LanguageProvider = defineLanguage({
       return {
         kind: 'import',
         targetRaw: captures['@import.source'].text.replace(/['"]/g, ''),
-      } as any;
-    }
-
-    // Handle class_definition as a "Symbol Export"
-    if (captures['@declaration.class']) {
-      return {
-        kind: 'symbol_export',
-        symbolName: captures['@declaration.class'].text.replace(/['"]/g, ''),
-        targetRaw: captures['@declaration.class'].text.replace(/['"]/g, ''),
       } as any;
     }
 

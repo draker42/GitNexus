@@ -479,6 +479,26 @@ export function runScopeResolution(
     postHeritageNodeLookup,
   );
 
+  // Emit Symbol nodes from parsed files (e.g., GDScript autoload entries)
+  // These need to exist in the graph before nodeLookup is used for resolution.
+  for (const parsed of parsedFiles) {
+    for (const def of parsed.localDefs) {
+      if (def.type === 'Symbol' && def.qualifiedName !== undefined) {
+        const nodeId = `Symbol:${def.filePath}:${def.qualifiedName}`;
+        if (graph.getNode(nodeId) === undefined) {
+          graph.addNode({
+            id: nodeId,
+            label: 'Symbol',
+            properties: {
+              name: def.qualifiedName,
+              filePath: def.filePath,
+            },
+          });
+        }
+      }
+    }
+  }
+
   // Replace the empty MethodDispatchIndex that finalizeScopeModel
   // builds by design with the populated one derived from the
   // language's MRO. Spread produces a fresh `ScopeResolutionIndexes`

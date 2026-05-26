@@ -182,6 +182,7 @@ const LABEL_BEHAVIOR = {
   Section: 'inert',
   Route: 'inert',
   Tool: 'inert',
+  Symbol: 'inert',
 } as const satisfies Record<NodeLabel, LabelBehavior> &
   // Cross-invariant 1 — every class-like label (participates in
   // qualifiedName fallback in `SymbolTable.add()`) MUST be classified as

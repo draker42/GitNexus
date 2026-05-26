@@ -1064,6 +1064,21 @@ export const GDSCRIPT_QUERIES = `
 (null)
 `;
 
+// Godot resource (project.godot) queries - autoload extraction
+// project.godot format: [section] with key=value pairs
+// Autoload entries create Symbol nodes for global singleton access
+export const GODOT_RESOURCE_QUERIES = `
+;; project.godot autoload section extraction
+;; Format: [autoload] with PlayerData="res://data/player_data.gd"
+;; Each autoload entry creates a Symbol definition
+(section
+  (identifier) @section.name
+  (#eq? @section.name "autoload")
+  (property
+    (path) @declaration.name
+    (string) @declaration.target) @declaration.symbol)
+`;
+
 // C++ queries - works with tree-sitter-cpp
 export const CPP_QUERIES = `
 ; Classes, Structs, Namespaces
