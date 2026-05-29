@@ -39,6 +39,7 @@ export function emitReferencesViaLookup(
   scopes: ScopeResolutionIndexes,
   referenceIndex: { readonly bySourceScope: ReadonlyMap<ScopeId, readonly Reference[]> },
   nodeLookup: GraphNodeLookup,
+  nodeLookupWithSynthetic: GraphNodeLookup,
   skipSites?: ReferenceSiteSkipSet,
 ): { emitted: number; skipped: number } {
   let emitted = 0;
@@ -68,7 +69,7 @@ export function emitReferencesViaLookup(
         skipped++;
         continue;
       }
-      const targetGraphId = resolveDefGraphId(targetDef.filePath, targetDef, nodeLookup);
+      const targetGraphId = resolveDefGraphId(targetDef.filePath, targetDef, nodeLookupWithSynthetic);
       if (targetGraphId === undefined) {
         skipped++;
         continue;

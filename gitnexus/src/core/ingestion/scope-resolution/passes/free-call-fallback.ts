@@ -52,6 +52,7 @@ export function emitFreeCallFallback(
   scopes: ScopeResolutionIndexes,
   parsedFiles: readonly ParsedFile[],
   nodeLookup: GraphNodeLookup,
+  nodeLookupWithSynthetic: GraphNodeLookup,
   _referenceIndex: { readonly bySourceScope: ReadonlyMap<ScopeId, readonly Reference[]> },
   handledSites: Set<string>,
   model: SemanticModel,
@@ -338,7 +339,7 @@ export function emitFreeCallFallback(
       if (fnDef === undefined) continue;
       const callerGraphId = resolveCallerGraphId(site.inScope, scopes, nodeLookup);
       if (callerGraphId === undefined) continue;
-      const tgtGraphId = resolveDefGraphId(fnDef.filePath, fnDef, nodeLookup);
+      const tgtGraphId = resolveDefGraphId(fnDef.filePath, fnDef, nodeLookupWithSynthetic);
       if (tgtGraphId === undefined) continue;
       // Always mark the site as handled — even when the dedup-collapse
       // means we don't add a new edge — so `emit-references` skips its

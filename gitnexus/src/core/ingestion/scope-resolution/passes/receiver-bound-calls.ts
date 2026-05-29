@@ -140,6 +140,7 @@ export function emitReceiverBoundCalls(
   scopes: ScopeResolutionIndexes,
   parsedFiles: readonly ParsedFile[],
   nodeLookup: GraphNodeLookup,
+  nodeLookupWithSynthetic: GraphNodeLookup,
   handledSites: Set<string>,
   provider: ReceiverBoundProviderSubset,
   index: WorkspaceResolutionIndex,
@@ -861,7 +862,7 @@ export function emitReceiverBoundCalls(
       const valueDef = findValueBindingInScope(site.inScope, receiverName, scopes);
       if (valueDef !== undefined) {
         const ownerGraphId =
-          resolveDefGraphId(valueDef.filePath, valueDef, nodeLookup) ?? valueDef.nodeId;
+          resolveDefGraphId(valueDef.filePath, valueDef, nodeLookupWithSynthetic) ?? valueDef.nodeId;
         const picked = pickOverload(ownerGraphId, memberName, site, model, provider);
         if (picked === OVERLOAD_AMBIGUOUS) {
           recordReceiverOverloadSuppression(
