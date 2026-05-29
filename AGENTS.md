@@ -60,6 +60,7 @@ commits, or posts.
 
 | Date | Version | Change |
 |------|---------|--------|
+| 2026-05-22 | 1.8.0 | Kotlin added to `MIGRATED_LANGUAGES` (registry-primary call resolution by default). Closes #1756 (companion-vs-instance dispatch) and #1757 (lambda scopes); refs #1746. RFC §6.4 corpus criterion waived (corpus-mode wiring is #927-scope); fixture criterion met. |
 | 2026-04-23 | 1.7.0 | TypeScript added to `MIGRATED_LANGUAGES` (registry-primary call resolution by default). |
 | 2026-04-20 | 1.6.0 | Added scope-resolution pipeline pointer (RFC #909 Ring 3); Python migrated to registry-primary. |
 | 2026-04-19 | 1.5.0 | Cross-repo impact (#794): `impact`/`query`/`context` accept `repo: "@<group>"` + `service`. Removed `group_query`/`group_contracts`/`group_status` MCP tools; added `gitnexus://group/{name}/contracts` and `gitnexus://group/{name}/status` resources. |
@@ -74,7 +75,7 @@ commits, or posts.
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **GitNexus** (19786 symbols, 25555 relationships, 264 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **GitNexus** (26675 symbols, 35395 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -112,20 +113,26 @@ This project is indexed by GitNexus as **GitNexus** (19786 symbols, 25555 relati
 | Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
 | Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
-
-## Hook env knobs
-
-The Claude Code hook (`gitnexus/hooks/claude/gitnexus-hook.cjs` and the mirrored plugin copy under `gitnexus-claude-plugin/hooks/`) honours these env vars. Defaults work for normal installations; set them only to override resolution. All path overrides ignore values that do not exist on disk and fall through to the standard resolution chain.
-
-| Env var | Type | Default | Purpose |
-|---------|------|---------|---------|
-| `GITNEXUS_HOOK_CLI_PATH` | path | resolved via package layout / `require.resolve` | Override path to the `gitnexus` CLI entry the hook spawns for `augment`. |
-| `GITNEXUS_HOOK_LSOF_PATH` | path | `lsof` on `PATH` (with `/usr/bin/lsof`, `/usr/sbin/lsof`, `/sbin/lsof` fallbacks) | Override POSIX `lsof` location for the DB-lock probe. |
-| `GITNEXUS_HOOK_PS_PATH` | path | `ps` on `PATH` (with `/bin/ps`, `/usr/bin/ps` fallbacks) | Override POSIX `ps` location. |
-| `GITNEXUS_HOOK_POWERSHELL_PATH` | path | `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe` (then `SysWOW64`, then `powershell.exe` on `PATH`) | Override Windows PowerShell location used by the Restart-Manager probe. |
-| `GITNEXUS_HOOK_LINUX_PROC_BUDGET_MS` | integer ms | `1200` | Max wall-clock for the Linux `/proc` fd scan before bailing out to the `lsof` fallback. |
-| `GITNEXUS_HOOK_RM_TARGET` | path | derived | Restart-Manager target file (the LadybugDB path under `.gitnexus/`). Set internally by the hook; rarely overridden manually. |
-| `GITNEXUS_DEBUG` | boolean (`1`/`true`) | unset | Verbose stderr from the hook: prints discarded augment-stderr prefixes and one-shot `.ps1` load-failure warnings. |
+| Work in the Ingestion area (239 symbols) | `.claude/skills/generated/ingestion/SKILL.md` |
+| Work in the Extractors area (135 symbols) | `.claude/skills/generated/extractors/SKILL.md` |
+| Work in the Components area (112 symbols) | `.claude/skills/generated/components/SKILL.md` |
+| Work in the Lbug area (96 symbols) | `.claude/skills/generated/lbug/SKILL.md` |
+| Work in the Group area (94 symbols) | `.claude/skills/generated/group/SKILL.md` |
+| Work in the Cli area (92 symbols) | `.claude/skills/generated/cli/SKILL.md` |
+| Work in the Configs area (92 symbols) | `.claude/skills/generated/configs/SKILL.md` |
+| Work in the Type-extractors area (90 symbols) | `.claude/skills/generated/type-extractors/SKILL.md` |
+| Work in the Hooks area (88 symbols) | `.claude/skills/generated/hooks/SKILL.md` |
+| Work in the Unit area (80 symbols) | `.claude/skills/generated/unit/SKILL.md` |
+| Work in the Cpp area (73 symbols) | `.claude/skills/generated/cpp/SKILL.md` |
+| Work in the Scope-resolution area (72 symbols) | `.claude/skills/generated/scope-resolution/SKILL.md` |
+| Work in the Server area (66 symbols) | `.claude/skills/generated/server/SKILL.md` |
+| Work in the Local area (61 symbols) | `.claude/skills/generated/local/SKILL.md` |
+| Work in the Wiki area (60 symbols) | `.claude/skills/generated/wiki/SKILL.md` |
+| Work in the Workers area (57 symbols) | `.claude/skills/generated/workers/SKILL.md` |
+| Work in the Embeddings area (56 symbols) | `.claude/skills/generated/embeddings/SKILL.md` |
+| Work in the Typescript area (53 symbols) | `.claude/skills/generated/typescript/SKILL.md` |
+| Work in the Storage area (51 symbols) | `.claude/skills/generated/storage/SKILL.md` |
+| Work in the Php area (48 symbols) | `.claude/skills/generated/php/SKILL.md` |
 
 <!-- gitnexus:end -->
 

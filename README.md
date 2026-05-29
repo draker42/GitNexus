@@ -2,11 +2,6 @@
 
 **⚠️ Important Notice:** GitNexus has NO official cryptocurrency, token, or coin. Any token/coin using the GitNexus name on Pump.fun or any other platform is **not affiliated with, endorsed by, or created by** this project or its maintainers. Do not purchase any cryptocurrency claiming association with GitNexus.
 
-# GDSCript support feature implementation
-The branch **feature/gdscript-support** contains experimental support for **GDScript** for **GitNexus**. At present, "it works for me", but no claim is made that it is complete nor correct. No guarantees it didn't break other languages. Although I haven't noticed any problems, I have not tested all languages. Use at your own risk!
-
-<p>Original GitNexus Readme follows below. </p>
-
 <div align="center">
 
   <a href="https://trendshift.io/repositories/19809" target="_blank">
