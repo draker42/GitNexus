@@ -1,7 +1,7 @@
 import Parser from 'tree-sitter';
 import gdscript from 'tree-sitter-gdscript';
 import godotResource from 'tree-sitter-godot-resource';
-import { GDSCRIPT_QUERIES, GODOT_RESOURCE_QUERIES } from '../../tree-sitter-queries.js';
+import { GDSCRIPT_QUERIES, GODOT_RESOURCE_QUERIES, GODOT_SCENE_QUERIES } from '../../tree-sitter-queries.js';
 import { defineLanguage,
         type LanguageProvider,
         type ImportSemantics} from '../../language-provider.js';
@@ -77,6 +77,168 @@ const getGodotResourceQuery = (): Parser.Query => {
   return godotResourceQuery;
 };
 
+/** Lazy singleton query for Godot scene (.tscn) captures. */
+let godotSceneQuery: Parser.Query | null = null;
+const getGodotSceneQuery = (): Parser.Query => {
+  if (godotSceneQuery === null) {
+    godotSceneQuery = new Parser.Query(godotResource, GODOT_SCENE_QUERIES);
+  }
+  return godotSceneQuery;
+};
+
+/**
+ * Extract node definitions from .tscn scene files.
+ * Maps node names ($NodeName, %UniqueNode) to their attached scripts.
+ * Creates Symbol definitions for scene nodes with their script paths.
+ */
+function emitGodotSceneCaptures(
+  sourceText: string,
+  filePath: string,
+): CaptureMatch[] {
+  const parser = getGodotResourceParser();
+  
+  let tree: Parser.Tree;
+  try {
+    tree = parser.parse(sourceText);
+  } catch {
+    return [];
+  }
+
+  const rootNode = tree.rootNode;
+  
+  // Calculate file range for module scope
+  const lines = sourceText.split('\n');
+  const lastLine = lines.length;
+  const lastCol = lines[lastLine - 1]?.length ?? 0;
+  
+  // First pass: collect ext_resource sections to map IDs to script paths
+  const extResourceMap = new Map<string, string>(); // id -> script path (with res:// prefix)
+  for (const node of rootNode.descendantsOfType('section')) {
+    const sectionId = node.firstNamedChild?.text;
+    if (sectionId !== 'ext_resource') continue;
+    
+    // Find attributes: path="..." and id=...
+    let pathText = '';
+    let idText = '';
+    
+    for (const child of node.children) {
+      if (child.type !== 'attribute') continue;
+      const attrId = child.children.find(c => c.type === 'identifier');
+      if (attrId?.text === 'path') {
+        const str = child.children.find(c => c.type === 'string');
+        if (str) pathText = str.text;
+      } else if (attrId?.text === 'id') {
+        const int = child.children.find(c => c.type === 'integer');
+        if (int) idText = int.text;
+      }
+    }
+    
+    const cleanPath = pathText.replace(/^"|"$/g, '');
+    if (cleanPath && idText) {
+      extResourceMap.set(idText, cleanPath); // Keep res:// prefix for resolver
+    }
+  }
+  
+  // Second pass: extract node definitions with their scripts
+  const out: CaptureMatch[] = [];
+  
+  for (const node of rootNode.descendantsOfType('section')) {
+    const sectionId = node.firstNamedChild?.text;
+    if (sectionId !== 'node') continue;
+    
+    // Find the name attribute
+    let nodeNameText = '';
+    for (const child of node.children) {
+      if (child.type !== 'attribute') continue;
+      const attrId = child.children.find(c => c.type === 'identifier');
+      if (attrId?.text === 'name') {
+        const str = child.children.find(c => c.type === 'string');
+        if (str) nodeNameText = str.text.replace(/^"|"$/g, '');
+      }
+    }
+    
+    if (!nodeNameText) continue;
+    
+    // Find the script property (ExtResource(id))
+    let scriptPath: string | undefined;
+    for (const child of node.children) {
+      if (child.type !== 'property') continue;
+      const pathNode = child.children.find(c => c.type === 'path');
+      if (pathNode?.text !== 'script') continue;
+      
+      const constructor = child.children.find(c => c.type === 'constructor');
+      if (!constructor) continue;
+      
+      const argsNode = constructor.children.find(c => c.type === 'arguments');
+      if (!argsNode) continue;
+      
+      const int = argsNode.children.find(c => c.type === 'integer');
+      if (int) {
+        scriptPath = extResourceMap.get(int.text);
+      }
+    }
+    
+    // Create a Symbol definition capture for this node.
+    // CRITICAL: Do NOT include @scope.module in the same match object - it causes
+    // topicOf to classify this as 'scope' instead of 'declaration' when both have
+    // equal span. We emit @scope.module separately (after the loop).
+    const declarationMatch: CaptureMatch = {
+      '@declaration.symbol': {
+        name: '@declaration.symbol',
+        range: {
+          startLine: node.startPosition.row + 1,
+          startCol: node.startPosition.column,
+          endLine: node.endPosition.row + 1,
+          endCol: node.endPosition.column,
+        },
+        text: nodeNameText,
+      },
+      '@declaration.name': {
+        name: '@declaration.name',
+        range: {
+          startLine: 1,
+          startCol: 0,
+          endLine: 1,
+          endCol: 1,
+        },
+        text: nodeNameText,
+      },
+      ...(scriptPath ? {
+        // Autoload entries use declaredType for target file path
+        // We reuse this for scene nodes too - the resolver will use it to find the class
+        '@declaration.field-type': {
+          name: '@declaration.field-type',
+          range: {
+            startLine: 1,
+            startCol: 0,
+            endLine: 1,
+            endCol: 1,
+          },
+          text: scriptPath,
+        }
+      } : {}),
+    };
+    out.push(declarationMatch);
+  }
+
+  // Emit a module scope as a SEPARATE match object so topicOf classifies
+  // the declaration matches correctly. This mirrors emitGodotResourceCaptures.
+  out.push({
+    '@scope.module': {
+      name: '@scope.module',
+      range: {
+        startLine: 1,
+        startCol: 0,
+        endLine: lastLine,
+        endCol: lastCol,
+      },
+      text: 'scene',
+    },
+  });
+
+  return out;
+}
+
 /**
  * Extract autoload entries from project.godot files.
  * Creates Symbol nodes for each autoload entry so they resolve globally.
@@ -145,7 +307,7 @@ function emitGodotResourceCaptures(
 // 3. The Provider Definition
 export const gdscriptProvider: LanguageProvider = defineLanguage({
   id: SupportedLanguages.GDScript,
-  extensions: ['.gd', '.godot'], // .godot for project.godot autoload extraction
+  extensions: ['.gd', '.godot', '.tscn'], // .tscn for scene file parsing
   importSemantics: 'wildcard-leaf' as ImportSemantics,
   heritageDefaultEdge: 'EXTENDS',
   mroStrategy: 'first-wins' as MroStrategy,
@@ -174,11 +336,17 @@ export const gdscriptProvider: LanguageProvider = defineLanguage({
    * is present, since GDScript's class_name_statement only spans one line but
    * the file body is semantically the class body.
    * For project.godot files, we extract autoload entries from the [autoload] section.
+   * For .tscn scene files, we extract node definitions and their attached scripts.
    */
   emitScopeCaptures: (sourceText, filePath, cachedTree) => {
-    // Handle project.godot files specially
+    // Handle project.godot files - autoload extraction
     if (filePath.endsWith('project.godot')) {
       return emitGodotResourceCaptures(sourceText, filePath);
+    }
+    
+    // Handle .tscn scene files - node extraction
+    if (filePath.endsWith('.tscn')) {
+      return emitGodotSceneCaptures(sourceText, filePath);
     }
 
     const parser = getGDScriptParser();

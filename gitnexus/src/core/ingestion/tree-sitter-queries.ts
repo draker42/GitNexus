@@ -1040,9 +1040,10 @@ export const GDSCRIPT_QUERIES = `
 ;; The first child after attribute is the receiver, the identifier inside attribute_call is the method name
 ;; Use "." predicate to ensure only the first identifier/child is captured as receiver
 ;; Also handle call/base_call as receiver for chained calls like get_player().take_damage()
+;; Also handle get_node (for $NodeName and %UniqueNode node references) as receiver
 (attribute
   .
-  [(identifier) (call) (base_call)] @reference.receiver
+  [(identifier) (call) (base_call) (get_node)] @reference.receiver
   (attribute_call
     (identifier) @reference.name)) @reference.call.member
 
@@ -1076,7 +1077,29 @@ export const GODOT_RESOURCE_QUERIES = `
   (#eq? @section.name "autoload")
   (property
     (path) @declaration.name
-    (string) @declaration.target) @declaration.symbol)
+    (string) @declaration.target)) @declaration.symbol
+`;
+
+// Godot scene (.tscn) queries - node and script extraction
+// Scene format: [node name="NodeName" type="NodeType"] with script = ExtResource(resource_id)
+// ExtResource maps to external resources defined in [ext_resource path="res://script.gd" id=1]
+// Node names captured here resolve $NodeName references in GDScript code
+export const GODOT_SCENE_QUERIES = `
+;; Node sections - capture the entire section for processor-side extraction
+(section
+  (identifier) @scene.section.name
+  (#eq? @scene.section.name "node")) @scene.node.section
+
+;; ExtResource sections - capture path for resource ID resolution
+(section
+  (identifier) @scene.ext.name
+  (#eq? @scene.ext.name "ext_resource")
+  (attribute
+    (identifier) @scene.ext.path.attr
+    (#eq? @scene.ext.path.attr "path"))
+  (attribute
+    (identifier) @scene.ext.id.attr
+    (#eq? @scene.ext.id.attr "id"))) @scene.ext.resource
 `;
 
 // C++ queries - works with tree-sitter-cpp
