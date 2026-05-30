@@ -835,6 +835,7 @@ export function runScopeResolution(
             properties: {
               name: def.qualifiedName,
               filePath: def.filePath,
+              ...(def.declaredType !== undefined ? { declaredType: def.declaredType } : {}),
             },
           });
         }

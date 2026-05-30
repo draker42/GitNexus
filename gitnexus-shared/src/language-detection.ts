@@ -44,7 +44,7 @@ const EXTENSION_MAP: Record<SupportedLanguages, readonly string[]> = {
     '.cuh',
   ],
   [SupportedLanguages.CSharp]: ['.cs'],
-  [SupportedLanguages.GDScript]: ['.gd', '.godot'],
+  [SupportedLanguages.GDScript]: ['.gd', '.godot', '.tscn'],
   [SupportedLanguages.Go]: ['.go'],
   [SupportedLanguages.Ruby]: ['.rb', '.rake', '.gemspec'],
   [SupportedLanguages.Rust]: ['.rs'],

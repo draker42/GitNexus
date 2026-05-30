@@ -598,7 +598,9 @@ function buildDefFromDeclarationMatch(
   const parameterTypeClasses = parseJsonParameterTypeClassesCapture(
     match['@declaration.parameter-type-classes'],
   );
-  const declaredType = match['@declaration.field-type']?.text;
+  // `@declaration.target` is used by autoload entries (GDScript project.godot)
+  // to store the target script path - we store it in declaredType for resolution
+  const declaredType = match['@declaration.field-type']?.text ?? match['@declaration.target']?.text;
   const returnType = match['@declaration.return-type']?.text;
   const templateConstraints = parseJsonCapture(match['@declaration.template-constraints']);
   const isExplicit = parseBooleanCapture(match['@declaration.is-explicit']);

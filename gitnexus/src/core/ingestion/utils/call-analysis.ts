@@ -138,20 +138,20 @@ export const inferCallForm = (callNode: SyntaxNode, nameNode: SyntaxNode): CallF
     return 'member';
   }
 
-  // 6. Scoped calls (Rust Foo::new(), C++ ns::func()): treat as free
+  // 5. Scoped calls (Rust Foo::new(), C++ ns::func()): treat as free
   //    The receiver is a type, not an instance — handled differently in Phase 3
   if (nameParent && SCOPED_CALL_NODE_TYPES.has(nameParent.type)) {
     return 'free';
   }
 
-  // 7. GDScript: attribute_call inside attribute node is a member call
+  // 6. GDScript: attribute_call inside attribute node is a member call
   //    For `obj.method()`, the AST is: attribute(identifier, attribute_call(identifier, ...))
   //    callNode = attribute_call, nameNode.parent = attribute_call, nameNode.parent.parent = attribute
   if (callNode.type === 'attribute_call' && callNode.parent?.type === 'attribute') {
     return 'member';
   }
 
-  // 8. Default: if nameNode is a direct child of callNode, it's a free call
+  // 7. Default: if nameNode is a direct child of callNode, it's a free call
   if (nameNode.parent === callNode || nameParent?.parent === callNode) {
     return 'free';
   }
@@ -283,6 +283,13 @@ export const extractReceiverName = (nameNode: SyntaxNode): string | undefined =>
     return receiver.text;
   }
 
+  // GDScript get_node ($NodeName or %UniqueNode) — extract the node name
+  // The get_node node has a $ or % child whose next sibling contains the node name
+  if (receiver.type === 'get_node') {
+    // $NodeName: get_node has first child = "$" or "%", we need to get the full text minus the prefix
+    return receiver.text.substring(1); // Skip the $ or % character
+  }
+
   // Python super().method(): receiver is a call node `super()` — extract the function name
   if (receiver.type === 'call') {
     const func = receiver.childForFieldName('function');
@@ -378,6 +385,17 @@ export const extractReceiverNode = (nameNode: SyntaxNode): SyntaxNode | undefine
     // First named child of attribute is the receiver (e.g., "btn")
     for (const child of attrNode.children) {
       if (child.isNamed && child.type !== 'attribute_call') {
+        receiver = child;
+        break;
+      }
+    }
+  }
+
+  // GDScript get_node ($NodeName or %UniqueNode) — extract as receiver
+  if (!receiver && parent.type === 'attribute_call' && callNode.type === 'attribute') {
+    const attrNode = callNode;
+    for (const child of attrNode.children) {
+      if (child.isNamed && child.type === 'get_node') {
         receiver = child;
         break;
       }
