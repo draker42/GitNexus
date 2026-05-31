@@ -70,6 +70,7 @@ const GRAMMAR_PACKAGES: Partial<Record<SupportedLanguages, { pkg: string; subpat
     pkg: 'tree-sitter-typescript',
     subpaths: ['typescript/src/node-types.json', 'tsx/src/node-types.json'],
   },
+  [SupportedLanguages.GDScript]: { pkg: 'tree-sitter-gdscript', subpaths: ['src/node-types.json'] },
 };
 
 /** Languages the gate validates (everything with a grammar package). */

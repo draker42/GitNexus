@@ -88,6 +88,7 @@ const DIR_LANG: Record<string, SupportedLanguages> = {
   swift: SupportedLanguages.Swift,
   dart: SupportedLanguages.Dart,
   vue: SupportedLanguages.Vue,
+  gdscript: SupportedLanguages.GDScript,
 };
 
 /** Basename (no .ts) → language set, for extractor files that name a language. */
@@ -111,6 +112,7 @@ const BASENAME_LANGS: Record<string, SupportedLanguages[]> = {
   nextjs: [SupportedLanguages.TypeScript, SupportedLanguages.JavaScript],
   expo: [SupportedLanguages.TypeScript, SupportedLanguages.JavaScript],
   'fastapi-router-bindings': [SupportedLanguages.Python],
+  gdscript: [SupportedLanguages.GDScript],
 };
 
 /** const-name prefix → language (for export-detection.ts style named sets). */
@@ -128,6 +130,7 @@ const PREFIX_LANGS: Record<string, SupportedLanguages[]> = {
   CPP: [SupportedLanguages.CPlusPlus],
   TS: [SupportedLanguages.TypeScript],
   JS: [SupportedLanguages.JavaScript],
+  GDSCRIPT: [SupportedLanguages.GDScript],
 };
 
 /** Candidate grammar languages a CODE literal in `relPath` should be checked against. */

@@ -54,12 +54,22 @@ const extractParameter = (node: SyntaxNode, env: Map<string, string>): void => {
   let typeNode: SyntaxNode | null = null;
 
   // GDScript function parameters
-  if (node.type === 'parameter') {
-    nameNode = node.childForFieldName('name') ?? node.firstNamedChild;
+  // GDScript uses typed_parameter, default_parameter, typed_default_parameter
+  // (no generic 'parameter' node type - checked via _parameters supertype)
+  if (node.type === 'default_parameter') {
+    // default_parameter has only 'value' field, identifier is first child
+    nameNode = node.firstNamedChild ?? node.child(0);
+  } else if (node.type === 'typed_parameter') {
+    // typed_parameter has 'type' field, identifier is first child
+    nameNode = node.firstNamedChild ?? node.child(0);
     typeNode = node.childForFieldName('type');
-  } else if (node.type === 'default_parameter') {
-    nameNode = node.childForFieldName('name');
+  } else if (node.type === 'typed_default_parameter') {
+    // typed_default_parameter has 'type' and 'value' fields, identifier is first child
+    nameNode = node.firstNamedChild ?? node.child(0);
     typeNode = node.childForFieldName('type');
+  } else {
+    // Unknown parameter type - skip
+    return;
   }
 
   if (!nameNode) return;
@@ -88,8 +98,6 @@ const extractInitializer = (
   if (node.type === 'assignment') {
     left = node.childForFieldName('left');
     right = node.childForFieldName('right');
-    // Skip if already has type annotation
-    if (node.childForFieldName('type')) return;
   } else {
     return;
   }
@@ -105,7 +113,8 @@ const extractInitializer = (
     const callNode = right.lastNamedChild;
     if (callNode?.type === 'attribute_call') {
       // Check if the method name is 'new' or a constructor-like name
-      const methodNameNode = callNode.childForFieldName('name') ?? callNode.firstNamedChild;
+      // attribute_call has identifier as first child, not a 'name' field
+      const methodNameNode = callNode.firstNamedChild;
       const methodName = methodNameNode?.text;
       
       if (methodName === 'new' || methodName === 'instance' || methodName === 'create') {
@@ -119,8 +128,9 @@ const extractInitializer = (
   }
 
   // Handle base_call pattern: `Button.new()` as a direct call
+  // base_call has identifier as first child, not a 'name' field
   if (right.type === 'base_call') {
-    const callee = right.childForFieldName('name') ?? right.firstNamedChild;
+    const callee = right.firstNamedChild;
     const calleeName = callee?.text;
     if (calleeName && (classNames.has(calleeName) || isBuiltInType(calleeName))) {
       env.set(varName, calleeName);
@@ -155,7 +165,8 @@ const scanConstructorBinding = (node: SyntaxNode): { varName: string; calleeName
   if (right.type === 'attribute') {
     const callNode = right.lastNamedChild;
     if (callNode?.type === 'attribute_call') {
-      const methodNameNode = callNode.childForFieldName('name') ?? callNode.firstNamedChild;
+      // attribute_call has identifier as first child, not a 'name' field
+      const methodNameNode = callNode.firstNamedChild;
       const methodName = methodNameNode?.text;
       
       if (methodName === 'new' || methodName === 'instance' || methodName === 'create') {
@@ -186,14 +197,15 @@ const scanConstructorBinding = (node: SyntaxNode): { varName: string; calleeName
 const extractForLoopBinding = (node: SyntaxNode, ctx: ForLoopExtractorContext): void => {
   if (node.type !== 'for_statement' && node.type !== 'for') return;
 
-  const varNode = node.childForFieldName('name');
+  // for_statement has 'left' field for loop variable, 'right' for iterable expression
+  const varNode = node.childForFieldName('left') ?? node.namedChildren[0];
   if (!varNode || varNode.type !== 'identifier') return;
 
   const varName = varNode.text;
   if (!varName || ctx.scopeEnv.has(varName)) return;
 
-  // Get the iterable expression
-  const iterableNode = node.childForFieldName('iterable') ?? node.namedChildren[1];
+  // Get the iterable expression - for_statement has 'right' field
+  const iterableNode = node.childForFieldName('right') ?? node.namedChildren[node.namedChildCount - 1];
   if (!iterableNode) return;
 
   // For `for child in collection.get_children()`:
@@ -216,14 +228,14 @@ function extractCallName(node: SyntaxNode): string | undefined {
   if (node.type === 'attribute') {
     const callNode = node.lastNamedChild;
     if (callNode?.type === 'attribute_call') {
-      const nameNode = callNode.childForFieldName('name') ?? callNode.firstNamedChild;
-      return nameNode?.text;
+      // attribute_call has identifier as first child, not a 'name' field
+      return callNode.firstNamedChild?.text;
     }
   }
   // For `method()` as a base_call
+  // base_call has identifier as first child, not a 'name' field
   if (node.type === 'base_call') {
-    const nameNode = node.childForFieldName('name') ?? node.firstNamedChild;
-    return nameNode?.text;
+    return node.firstNamedChild?.text;
   }
   return undefined;
 }
