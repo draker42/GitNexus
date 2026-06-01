@@ -117,6 +117,11 @@ const SMOKE_CASES: Record<string, SmokeCase> = {
     snippet: 'fun main() {}\n',
     rootType: 'source_file',
   },
+  [SupportedLanguages.GDScript]: {
+    language: SupportedLanguages.GDScript,
+    snippet: 'var x = 1\n',
+    rootType: 'source',
+  },
 };
 
 describe('parser-loader ABI load-smoke (#1922)', () => {
