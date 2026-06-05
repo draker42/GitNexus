@@ -1056,14 +1056,8 @@ export const GDSCRIPT_QUERIES = `
 
 (extends_statement (_)) @extends_statement
 
-;; Heritage captures for EXTENDS edges
-;; GDScript uses class_name_statement to name the class and extends_statement for parent
-;; Note: The order in source is extends_statement FIRST, then class_name_statement
-(source
-  (extends_statement
-    (type (identifier) @heritage.extends))
-  (class_name_statement
-    name: (name) @heritage.class)) @heritage
+;; Heritage synthesis for EXTENDS edges is handled by emitScopeCaptures in gdscript/index.ts
+;; using @reference.inherits captures (registry-primary path)
 
 (for_statement
   left: (identifier) @for_iterator

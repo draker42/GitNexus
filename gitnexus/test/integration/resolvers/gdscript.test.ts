@@ -1,7 +1,7 @@
 /**
  * GDScript: built-in type calls (Button.new, connect, etc.)
  */
-import { describe, expect, beforeAll } from 'vitest';
+import { describe, expect, beforeAll, it } from 'vitest';
 import path from 'path';
 import {
   FIXTURES,
@@ -9,14 +9,7 @@ import {
   getRelationships,
   getNodesByLabel,
   getNodesByType,
-  createResolverParityIt,
 } from './helpers.js';
-
-// Shadow vitest's `it` with the parity-gated runner so tests listed in
-// `LEGACY_RESOLVER_PARITY_EXPECTED_FAILURES.gdscript` (helpers.ts) skip
-// under `REGISTRY_PRIMARY_GDSCRIPT=0` (legacy DAG mode) and run normally
-// under the default registry-primary path.
-const it = createResolverParityIt('gdscript');
 
 describe('GDScript built-in type call resolution', () => {
   let result: Awaited<ReturnType<typeof runPipelineFromRepo>>;

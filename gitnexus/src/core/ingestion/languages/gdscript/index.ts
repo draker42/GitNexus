@@ -3,8 +3,7 @@ import gdscript from 'tree-sitter-gdscript';
 import godotResource from 'tree-sitter-godot-resource';
 import { GDSCRIPT_QUERIES, GODOT_RESOURCE_QUERIES, GODOT_SCENE_QUERIES } from '../../tree-sitter-queries.js';
 import { defineLanguage,
-        type LanguageProvider,
-        type ImportSemantics} from '../../language-provider.js';
+        type LanguageProvider } from '../../language-provider.js';
 import { SupportedLanguages } from 'gitnexus-shared';
 import type {
   MroStrategy,
@@ -16,11 +15,11 @@ import type { LanguageTypeConfig } from '../../type-extractors/types.js';
 import { gdscriptTypeConfig } from '../../type-extractors/gdscript.js';
 import { createCallExtractor } from '../../call-extractors/generic.js';
 import { gdscriptCallConfig } from '../../call-extractors/configs/gdscript.js';
-import { createHeritageExtractor } from '../../heritage-extractors/generic.js';
 import { synthesizeGdscriptTypeBindings } from './type-binding.js';
 import { synthesizeGdscriptReceiverBinding } from './receiver-binding.js';
 import { interpretGdscriptTypeBinding, gdscriptReceiverBinding } from './interpret.js';
 import { extractMixedChain } from '../../utils/call-analysis.js';
+import { nodeToCapture, syntheticCapture, type SyntaxNode } from '../../utils/ast-helpers.js';
 
 // 1. Constants & Built-ins
 const BUILT_INS: ReadonlySet<string> = new Set([
@@ -304,12 +303,34 @@ function emitGodotResourceCaptures(
   return out;
 }
 
+/**
+ * Synthesize `@reference.inherits` captures from GDScript `extends` statements
+ * so the registry-primary scope-resolution path emits EXTENDS edges.
+ * Mirrors the pattern in languages/typescript/captures.ts and others.
+ */
+function synthesizeGdscriptInheritanceReferences(rootNode: Parser.SyntaxNode): CaptureMatch[] {
+  const out: CaptureMatch[] = [];
+  for (const node of rootNode.descendantsOfType('extends_statement')) {
+    // Find the type node inside extends_statement
+    const typeNode = node.namedChild(0);
+    if (typeNode === null) continue;
+    
+    // The type node should have an identifier as its first child
+    const identifierNode = typeNode.namedChild(0);
+    if (identifierNode === null) continue;
+    
+    out.push({
+      '@reference.inherits': nodeToCapture('@reference.inherits', typeNode),
+      '@reference.name': nodeToCapture('@reference.name', identifierNode),
+    });
+  }
+  return out;
+}
+
 // 3. The Provider Definition
 export const gdscriptProvider: LanguageProvider = defineLanguage({
   id: SupportedLanguages.GDScript,
   extensions: ['.gd', '.godot', '.tscn'], // .tscn for scene file parsing
-  importSemantics: 'wildcard-leaf' as ImportSemantics,
-  heritageDefaultEdge: 'EXTENDS',
   mroStrategy: 'first-wins' as MroStrategy,
   builtInNames: BUILT_INS,
   treeSitterQueries: GDScriptTreeSitterQueries,
@@ -328,7 +349,6 @@ export const gdscriptProvider: LanguageProvider = defineLanguage({
   astFrameworkPatterns: [],
 
   callExtractor: createCallExtractor(gdscriptCallConfig),
-  heritageExtractor: createHeritageExtractor(SupportedLanguages.GDScript),
 
   /**
    * The "Matcher": Converts Tree-Sitter matches into CaptureMatch objects.
@@ -480,26 +500,30 @@ export const gdscriptProvider: LanguageProvider = defineLanguage({
       });
     }
 
+    // Synthesize @reference.inherits captures for GDScript extends statements
+    // so scope resolution can emit EXTENDS edges (registry-primary path)
+    out.push(...synthesizeGdscriptInheritanceReferences(rootNode));
+
     // Layer on type-binding synthesis (Button.new() pattern)
     const synthesized = synthesizeGdscriptTypeBindings(rootNode);
     return [...out, ...synthesized];
   },
 
-    /**
+  /**
    * The "Semanticist": Interprets imports (preload/extends) and signal connections/super calls.
    */
   interpretImport: (captures) => {
     if (!captures) return null;
 
-    // Handle extends (class inheritance) - from heritage capture
-    if (captures['@heritage.extends']) {
+    // Handle extends (class inheritance) - from reference.inherits capture
+    if (captures['@reference.inherits']) {
       return {
         kind: 'extends',
-        targetRaw: captures['@heritage.extends'].text.replace(/['"]/g, ''),
+        targetRaw: captures['@reference.name']?.text ?? captures['@reference.inherits'].text.replace(/['"]/g, ''),
       } as any;
     }
 
-    // Handle extends statement (legacy format)
+    // Handle extends statement (legacy format) - kept for compatibility
     if (captures['@extends']) {
       return {
         kind: 'extends',
