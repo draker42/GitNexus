@@ -122,6 +122,13 @@ const SMOKE_CASES: Record<string, SmokeCase> = {
     snippet: 'var x = 1\n',
     rootType: 'source',
   },
+  // Godot resource/editor files use a separate grammar package for .tres/.tscn parsing.
+  [`${SupportedLanguages.GDScript}:tres`]: {
+    language: SupportedLanguages.GDScript,
+    filePath: 'test.tres',
+    snippet: "[resource]\n\nextants = []\n",
+    rootType: 'resource',
+  },
 };
 
 describe('parser-loader ABI load-smoke (#1922)', () => {

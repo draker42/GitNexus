@@ -1,6 +1,5 @@
 import Parser from 'tree-sitter';
-import gdscript from 'tree-sitter-gdscript';
-import godotResource from 'tree-sitter-godot-resource';
+import { getLanguageGrammar } from '../../../tree-sitter/parser-loader.js';
 import { GDSCRIPT_QUERIES, GODOT_RESOURCE_QUERIES, GODOT_SCENE_QUERIES } from '../../tree-sitter-queries.js';
 import { defineLanguage,
         type LanguageProvider } from '../../language-provider.js';
@@ -38,12 +37,17 @@ const BUILT_INS: ReadonlySet<string> = new Set([
 
 const GDScriptTreeSitterQueries = GDSCRIPT_QUERIES;
 
+// GDScript grammar is loaded lazily via getLanguageGrammar for optional-grammar safety.
+// We cache the grammar reference after loading so queries can reuse it without re-loading.
+let _gdscriptGrammar: unknown = null;
+
 /** Lazy singleton parser for GDScript – reused across files. */
 let gdscriptParser: Parser | null = null;
 const getGDScriptParser = (): Parser => {
   if (gdscriptParser === null) {
     gdscriptParser = new Parser();
-    gdscriptParser.setLanguage(gdscript);
+    _gdscriptGrammar = getLanguageGrammar(SupportedLanguages.GDScript);
+    gdscriptParser.setLanguage(_gdscriptGrammar as Parameters<Parser['setLanguage']>[0]);
   }
   return gdscriptParser;
 };
@@ -53,7 +57,9 @@ let godotResourceParser: Parser | null = null;
 const getGodotResourceParser = (): Parser => {
   if (godotResourceParser === null) {
     godotResourceParser = new Parser();
-    godotResourceParser.setLanguage(godotResource);
+    // Use file extension variant to load tree-sitter-godot-resource grammar.
+    const grammar = getLanguageGrammar(SupportedLanguages.GDScript, '.tres');
+    godotResourceParser.setLanguage(grammar as Parameters<Parser['setLanguage']>[0]);
   }
   return godotResourceParser;
 };
@@ -62,7 +68,11 @@ const getGodotResourceParser = (): Parser => {
 let gdscriptScopeQuery: Parser.Query | null = null;
 const getGDScriptScopeQuery = (): Parser.Query => {
   if (gdscriptScopeQuery === null) {
-    gdscriptScopeQuery = new Parser.Query(gdscript, GDScriptTreeSitterQueries);
+    // Ensure grammar is loaded first
+    if (_gdscriptGrammar === null) {
+      _gdscriptGrammar = getLanguageGrammar(SupportedLanguages.GDScript);
+    }
+    gdscriptScopeQuery = new Parser.Query(_gdscriptGrammar!, GDScriptTreeSitterQueries);
   }
   return gdscriptScopeQuery;
 };
@@ -71,7 +81,8 @@ const getGDScriptScopeQuery = (): Parser.Query => {
 let godotResourceQuery: Parser.Query | null = null;
 const getGodotResourceQuery = (): Parser.Query => {
   if (godotResourceQuery === null) {
-    godotResourceQuery = new Parser.Query(godotResource, GODOT_RESOURCE_QUERIES);
+    const grammar = getLanguageGrammar(SupportedLanguages.GDScript, '.tres');
+    godotResourceQuery = new Parser.Query(grammar as Parameters<Parser['setLanguage']>[0], GODOT_RESOURCE_QUERIES);
   }
   return godotResourceQuery;
 };
@@ -80,7 +91,8 @@ const getGodotResourceQuery = (): Parser.Query => {
 let godotSceneQuery: Parser.Query | null = null;
 const getGodotSceneQuery = (): Parser.Query => {
   if (godotSceneQuery === null) {
-    godotSceneQuery = new Parser.Query(godotResource, GODOT_SCENE_QUERIES);
+    const grammar = getLanguageGrammar(SupportedLanguages.GDScript, '.tres');
+    godotSceneQuery = new Parser.Query(grammar as Parameters<Parser['setLanguage']>[0], GODOT_SCENE_QUERIES);
   }
   return godotSceneQuery;
 };

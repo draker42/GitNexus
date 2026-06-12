@@ -51,7 +51,13 @@ const NODE_MODULES = path.join(GITNEXUS_ROOT, 'node_modules');
  * it is now VENDORED with GitNexus-built prebuilds for all 6, so it falls under
  * the vendored cohort below, not here.)
  */
-const KNOWN_NPM_GAPS: Record<string, string[]> = {};
+const KNOWN_NPM_GAPS: Record<string, string[]> = {
+  // tree-sitter-gdscript and tree-sitter-godot-resource are loaded via npm
+  // (not vendored) for optional grammar support. They ship incomplete prebuilds
+  // upstream, but graceful fallback is acceptable since they're user-skippable.
+  'tree-sitter-gdscript': ['linux-arm64', 'win32-arm64'],
+  'tree-sitter-godot-resource': ['darwin-x64', 'linux-arm64', 'win32-arm64'],
+};
 
 /**
  * Vendored grammars declared "fully prebuilt": GitNexus has committed 6/6

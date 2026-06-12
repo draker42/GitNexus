@@ -178,13 +178,21 @@ const SOURCES: Record<string, GrammarSource> = {
       `See ${ISSUES_URL}/2107.`,
   },
   [SupportedLanguages.GDScript]: {
-    load: () => requireVendoredGrammar('tree-sitter-gdscript'),
+    load: () => _require('tree-sitter-gdscript'),
     optional: true,
     userSkippable: true,
     unavailableNote:
-      'GDScript parsing disabled: vendored `tree-sitter-gdscript` (under ' +
-      '`gitnexus/vendor/tree-sitter-gdscript`) failed to load. ' +
-      'Likely cause: no prebuilt `.node` for this platform/architecture. ',
+      'GDScript parsing disabled: `tree-sitter-gdscript` (under node_modules) failed to load. ' +
+      'Likely cause: no native binding or ABI mismatch with tree-sitter@0.21.1 runtime.',
+  },
+  // Godot resource files (.tscn, .tres) use a separate grammar package.
+  [`${SupportedLanguages.GDScript}:tres`]: {
+    load: () => _require('tree-sitter-godot-resource'),
+    optional: true,
+    userSkippable: true,
+    unavailableNote:
+      'Godot resource parsing disabled: `tree-sitter-godot-resource` (under node_modules) failed to load. ' +
+      'Likely cause: no native binding or ABI mismatch with tree-sitter@0.21.1 runtime.',
   },
 };
 
@@ -287,10 +295,17 @@ const logFailure = (key: string, result: LoadResult): void => {
   }
 };
 
-export const resolveLanguageKey = (language: SupportedLanguages, filePath?: string): string =>
-  language === SupportedLanguages.TypeScript && filePath?.endsWith('.tsx')
-    ? `${language}:tsx`
-    : language;
+// File extensions that require tree-sitter-godot-resource (a separate grammar package).
+const GODOT_RESOURCE_EXTENSIONS = ['.tscn', '.tres'];
+
+export const resolveLanguageKey = (language: SupportedLanguages, filePath?: string): string => {
+  if (language === SupportedLanguages.TypeScript && filePath?.endsWith('.tsx'))
+    return `${language}:tsx`;
+  // Godot resource files (.tscn scene, .tres resource) use tree-sitter-godot-resource grammar.
+  if (language === SupportedLanguages.GDScript && GODOT_RESOURCE_EXTENSIONS.some(ext => filePath?.endsWith(ext)))
+    return `${language}:tres`;
+  return language;
+};
 
 const loadGrammar = (key: string): LoadResult => {
   const cached = loadCache.get(key);
