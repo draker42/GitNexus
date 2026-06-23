@@ -424,7 +424,7 @@ describe('callee-id capture — emitReferencesViaLookup', () => {
     };
 
     const acc = createCalleeIdAccumulator();
-    const result = emitReferencesViaLookup(graph, indexes, referenceIndex, lookup, undefined, acc);
+    const result = emitReferencesViaLookup(graph, indexes, referenceIndex, lookup, lookup, undefined, acc);
 
     expect(result.emitted).toBe(1);
     const targetId = graph.relationships[0]!.targetId;
@@ -465,6 +465,7 @@ describe('callee-id capture — emitReferencesViaLookup', () => {
       indexes,
       referenceIndex,
       buildGraphNodeLookup(onGraph),
+      buildGraphNodeLookup(onGraph),
       undefined,
       acc,
     );
@@ -474,6 +475,7 @@ describe('callee-id capture — emitReferencesViaLookup', () => {
       offGraph,
       indexes,
       referenceIndex,
+      buildGraphNodeLookup(offGraph),
       buildGraphNodeLookup(offGraph),
       undefined,
       undefined,
@@ -549,6 +551,7 @@ describe('callee-id capture — emitFreeCallFallback (inline addRelationship)', 
       indexes,
       [parsed],
       lookup,
+      lookup,
       { bySourceScope: new Map() },
       new Set<string>(),
       model,
@@ -576,6 +579,7 @@ describe('callee-id capture — emitFreeCallFallback (inline addRelationship)', 
       on.indexes,
       [parsed],
       on.lookup,
+      on.lookup,
       { bySourceScope: new Map() },
       new Set<string>(),
       model,
@@ -586,6 +590,7 @@ describe('callee-id capture — emitFreeCallFallback (inline addRelationship)', 
       off.graph,
       off.indexes,
       [parsed],
+      off.lookup,
       off.lookup,
       { bySourceScope: new Map() },
       new Set<string>(),
